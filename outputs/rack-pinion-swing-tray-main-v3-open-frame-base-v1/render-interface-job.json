@@ -1,0 +1,12 @@
+{
+  "input": "/Users/bytedance/Documents/Codex/2026-07-15/keyboard-trackpad-cross-axis-redesign/.worktrees/v3-open-frame-base/outputs/rack-pinion-swing-tray-main-v3-open-frame-base-v1/base_and_return_interface.step",
+  "workspaceRoot": "/Users/bytedance/Documents/Codex/2026-07-15/keyboard-trackpad-cross-axis-redesign/.worktrees/v3-open-frame-base",
+  "rootDir": "outputs/rack-pinion-swing-tray-main-v3-open-frame-base-v1",
+  "mode": "view",
+  "outputs": [
+    {"path": "/Users/bytedance/Documents/Codex/2026-07-15/keyboard-trackpad-cross-axis-redesign/.worktrees/v3-open-frame-base/outputs/rack-pinion-swing-tray-main-v3-open-frame-base-v1/render-review/base_interface_iso.png", "camera": "iso", "width": 1800, "height": 1200},
+    {"path": "/Users/bytedance/Documents/Codex/2026-07-15/keyboard-trackpad-cross-axis-redesign/.worktrees/v3-open-frame-base/outputs/rack-pinion-swing-tray-main-v3-open-frame-base-v1/render-review/base_interface_bottom.png", "camera": "bottom", "width": 1800, "height": 1200}
+  ],
+  "theme": {"id": "workbench", "settings": null},
+  "render": {"viewLabels": true, "padding": 0.10, "sizeProfile": "assembly"}
+}
