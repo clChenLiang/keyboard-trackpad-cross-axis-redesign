@@ -1,0 +1,17 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local CAD runtimes, render scratch data, and linked worktrees
+work/
+.worktrees/
+.superpowers/
+
+# CAD Explorer derived sidecars; STEP remains the source-of-truth artifact
+.*.step.glb
+.*.stp.glb
+*.step.topology.json
+*.stp.topology.json

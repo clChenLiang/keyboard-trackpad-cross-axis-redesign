@@ -1,0 +1,166 @@
+{
+  "poses": [
+    "keyboard_mode.step",
+    "mid_mode.step",
+    "trackpad_mode.step",
+    "master_assembly.step",
+    "roller_detail_assembled.step",
+    "roller_detail_exploded.step"
+  ],
+  "parts": [
+    {
+      "name": "base",
+      "step": "base.step",
+      "stl": "base.stl"
+    },
+    {
+      "name": "side_frame_left",
+      "step": "side_frame_left.step",
+      "stl": "side_frame_left.stl"
+    },
+    {
+      "name": "side_frame_right",
+      "step": "side_frame_right.step",
+      "stl": "side_frame_right.stl"
+    },
+    {
+      "name": "keyboard_tray",
+      "step": "keyboard_tray.step",
+      "stl": "keyboard_tray.stl"
+    },
+    {
+      "name": "trackpad_tray",
+      "step": "trackpad_tray.step",
+      "stl": "trackpad_tray.stl"
+    },
+    {
+      "name": "keyboard_carriage_left",
+      "step": "keyboard_carriage_left.step",
+      "stl": "keyboard_carriage_left.stl"
+    },
+    {
+      "name": "keyboard_carriage_right",
+      "step": "keyboard_carriage_right.step",
+      "stl": "keyboard_carriage_right.stl"
+    },
+    {
+      "name": "trackpad_carriage_left",
+      "step": "trackpad_carriage_left.step",
+      "stl": "trackpad_carriage_left.stl"
+    },
+    {
+      "name": "trackpad_carriage_right",
+      "step": "trackpad_carriage_right.step",
+      "stl": "trackpad_carriage_right.stl"
+    },
+    {
+      "name": "cross_eccentric_bushing",
+      "step": "cross_eccentric_bushing.step",
+      "stl": "cross_eccentric_bushing.stl"
+    },
+    {
+      "name": "guide_eccentric_bushing",
+      "step": "guide_eccentric_bushing.step",
+      "stl": "guide_eccentric_bushing.stl"
+    },
+    {
+      "name": "tpu_stop_collar",
+      "step": "tpu_stop_collar.step",
+      "stl": "tpu_stop_collar.stl"
+    },
+    {
+      "name": "right_float_washer",
+      "step": "right_float_washer.step",
+      "stl": "right_float_washer.stl"
+    },
+    {
+      "name": "keyboard_tpu_pad",
+      "step": "keyboard_tpu_pad.step",
+      "stl": "keyboard_tpu_pad.stl"
+    },
+    {
+      "name": "trackpad_tpu_pad",
+      "step": "trackpad_tpu_pad.step",
+      "stl": "trackpad_tpu_pad.stl"
+    },
+    {
+      "name": "tpu_base_foot",
+      "step": "tpu_base_foot.step",
+      "stl": "tpu_base_foot.stl"
+    },
+    {
+      "name": "calibration_coupon",
+      "step": "calibration_coupon.step",
+      "stl": "calibration_coupon.stl"
+    }
+  ],
+  "plates": [
+    {
+      "name": "base_plate",
+      "step": "base_plate.step",
+      "3mf": "base_plate.3mf",
+      "structure": {
+        "object_count": 2,
+        "build_item_count": 1,
+        "root_label": "v10_base_plate",
+        "component_count": 1
+      }
+    },
+    {
+      "name": "trays_plate",
+      "step": "trays_plate.step",
+      "3mf": "trays_plate.3mf",
+      "structure": {
+        "object_count": 3,
+        "build_item_count": 1,
+        "root_label": "v10_trays_plate",
+        "component_count": 2
+      }
+    },
+    {
+      "name": "frames_plate",
+      "step": "frames_plate.step",
+      "3mf": "frames_plate.3mf",
+      "structure": {
+        "object_count": 3,
+        "build_item_count": 1,
+        "root_label": "v10_frames_plate",
+        "component_count": 2
+      }
+    },
+    {
+      "name": "carriages_plate",
+      "step": "carriages_plate.step",
+      "3mf": "carriages_plate.3mf",
+      "structure": {
+        "object_count": 5,
+        "build_item_count": 1,
+        "root_label": "v10_carriages_plate",
+        "component_count": 4
+      }
+    },
+    {
+      "name": "petg_small_parts_plate",
+      "step": "petg_small_parts_plate.step",
+      "3mf": "petg_small_parts_plate.3mf",
+      "structure": {
+        "object_count": 8,
+        "build_item_count": 1,
+        "root_label": "v10_petg_small_parts_plate",
+        "component_count": 7
+      }
+    },
+    {
+      "name": "tpu_parts_plate",
+      "step": "tpu_parts_plate.step",
+      "3mf": "tpu_parts_plate.3mf",
+      "structure": {
+        "object_count": 33,
+        "build_item_count": 1,
+        "root_label": "v10_tpu_parts_plate",
+        "component_count": 20
+      }
+    }
+  ],
+  "generated_utc": "2026-07-15T17:07:06.396032+00:00"
+}

@@ -1,0 +1,1212 @@
+{
+  "motion": {
+    "sample_count": 401,
+    "max_cross_error_mm": 1.1546319456101628e-14,
+    "min_cross_end_margin_mm": 5.160647348449743,
+    "monotonic": true,
+    "stroke_ratio": 3.660479628561141,
+    "input_projection": 0.6086858122909364,
+    "output_projection": 0.16628580788747577
+  },
+  "collision": {
+    "sample_count": 101,
+    "bbox_candidates": 13442,
+    "collisions": [],
+    "truncated": false
+  },
+  "stability": {
+    "support_bounds_mm": {
+      "x": [
+        -137.0,
+        137.0
+      ],
+      "y": [
+        -101.0,
+        131.0
+      ]
+    },
+    "poses": [
+      {
+        "travel": 0.0,
+        "cg_mm": [
+          11.289631685384375,
+          7.701367058987827,
+          45.33229521194724
+        ],
+        "margin_mm": 108.70136705898783,
+        "total_mass_kg": 1.225694413594027,
+        "keyboard_moving_mass_kg": 0.4937624446604896,
+        "trackpad_moving_mass_kg": 0.4886583566483671
+      },
+      {
+        "travel": 1.0,
+        "cg_mm": [
+          11.28978433296135,
+          -26.073901202661727,
+          22.15179028771404
+        ],
+        "margin_mm": 74.92609879733827,
+        "total_mass_kg": 1.2256773887573746,
+        "keyboard_moving_mass_kg": 0.49374541982383713,
+        "trackpad_moving_mass_kg": 0.4886583566483671
+      }
+    ],
+    "minimum_margin_mm": 74.92609879733827
+  },
+  "spring": {
+    "keyboard_moving_mass_kg": 0.4937624446604896,
+    "trackpad_moving_mass_kg": 0.4886583566483671,
+    "gravity_equivalent_n": 8.30901082680162,
+    "required_start_force_n": 10.30901082680162,
+    "nominal_start_force_n": 12.540000000000001,
+    "weakest_10_percent_start_force_n": 11.286000000000001,
+    "start_return_margin_n": 2.230989173198381,
+    "returns_with_10_percent_mismatch": true,
+    "maximum_user_force_n": 18.976576644947187,
+    "coil_bind_margin_mm": 7.458980337503149
+  },
+  "printability": {
+    "parts": [
+      {
+        "name": "base",
+        "bbox_mm": [
+          298.0000000000001,
+          250.0,
+          6.0
+        ],
+        "fits_h2d": true,
+        "single_valid_solid": true
+      },
+      {
+        "name": "side_frame_left",
+        "bbox_mm": [
+          31.0,
+          253.47992337669086,
+          93.8724758601074
+        ],
+        "fits_h2d": true,
+        "single_valid_solid": true
+      },
+      {
+        "name": "side_frame_right",
+        "bbox_mm": [
+          31.000000000000004,
+          253.47992337669086,
+          93.8724758601074
+        ],
+        "fits_h2d": true,
+        "single_valid_solid": true
+      },
+      {
+        "name": "keyboard_tray",
+        "bbox_mm": [
+          291.0,
+          115.7,
+          14.0
+        ],
+        "fits_h2d": true,
+        "single_valid_solid": true
+      },
+      {
+        "name": "trackpad_tray",
+        "bbox_mm": [
+          291.0,
+          139.85,
+          14.0
+        ],
+        "fits_h2d": true,
+        "single_valid_solid": true
+      },
+      {
+        "name": "keyboard_carriage_left",
+        "bbox_mm": [
+          10.0,
+          104.62071677365091,
+          46.016806363789925
+        ],
+        "fits_h2d": true,
+        "single_valid_solid": true
+      },
+      {
+        "name": "keyboard_carriage_right",
+        "bbox_mm": [
+          10.0,
+          104.62071677365091,
+          46.016806363789925
+        ],
+        "fits_h2d": true,
+        "single_valid_solid": true
+      },
+      {
+        "name": "trackpad_carriage_left",
+        "bbox_mm": [
+          11.5,
+          200.8856523424509,
+          51.74894159432586
+        ],
+        "fits_h2d": true,
+        "single_valid_solid": true
+      },
+      {
+        "name": "trackpad_carriage_right",
+        "bbox_mm": [
+          11.5,
+          200.8856523424509,
+          51.74894159432586
+        ],
+        "fits_h2d": true,
+        "single_valid_solid": true
+      },
+      {
+        "name": "cross_eccentric_bushing",
+        "bbox_mm": [
+          6.000000000000002,
+          12.0,
+          10.0
+        ],
+        "fits_h2d": true,
+        "single_valid_solid": true
+      },
+      {
+        "name": "guide_eccentric_bushing",
+        "bbox_mm": [
+          6.000000000000002,
+          12.0,
+          10.0
+        ],
+        "fits_h2d": true,
+        "single_valid_solid": true
+      },
+      {
+        "name": "tpu_stop_collar",
+        "bbox_mm": [
+          5.973213749463701,
+          6.0,
+          3.0
+        ],
+        "fits_h2d": true,
+        "single_valid_solid": true
+      },
+      {
+        "name": "right_float_washer",
+        "bbox_mm": [
+          0.6000000000000009,
+          8.0,
+          8.0
+        ],
+        "fits_h2d": true,
+        "single_valid_solid": true
+      },
+      {
+        "name": "keyboard_tpu_pad",
+        "bbox_mm": [
+          32.0,
+          8.0,
+          1.2
+        ],
+        "fits_h2d": true,
+        "single_valid_solid": true
+      },
+      {
+        "name": "trackpad_tpu_pad",
+        "bbox_mm": [
+          26.0,
+          8.0,
+          1.2
+        ],
+        "fits_h2d": true,
+        "single_valid_solid": true
+      },
+      {
+        "name": "tpu_base_foot",
+        "bbox_mm": [
+          24.0,
+          18.0,
+          2.0
+        ],
+        "fits_h2d": true,
+        "single_valid_solid": true
+      },
+      {
+        "name": "calibration_coupon",
+        "bbox_mm": [
+          92.0,
+          38.0,
+          7.0
+        ],
+        "fits_h2d": true,
+        "single_valid_solid": true
+      }
+    ],
+    "minimum_load_wall_mm": 1.2,
+    "failures": []
+  },
+  "plate_layouts": {
+    "plates": [
+      {
+        "name": "base_plate",
+        "bbox_mm": [
+          298.0000000000001,
+          250.0,
+          6.0
+        ],
+        "object_count": 1,
+        "fits_h2d_xy": true,
+        "minimum_xy_spacing_mm": 2.0,
+        "bbox_overlaps": []
+      },
+      {
+        "name": "trays_plate",
+        "bbox_mm": [
+          291.0,
+          264.775,
+          14.000000000000018
+        ],
+        "object_count": 2,
+        "fits_h2d_xy": true,
+        "minimum_xy_spacing_mm": 2.0,
+        "bbox_overlaps": []
+      },
+      {
+        "name": "frames_plate",
+        "bbox_mm": [
+          203.8724758601074,
+          253.47992337669086,
+          31.00000000000001
+        ],
+        "object_count": 2,
+        "fits_h2d_xy": true,
+        "minimum_xy_spacing_mm": 2.0,
+        "bbox_overlaps": []
+      },
+      {
+        "name": "carriages_plate",
+        "bbox_mm": [
+          184.88287397905788,
+          220.62071677365088,
+          11.500000000000016
+        ],
+        "object_count": 4,
+        "fits_h2d_xy": true,
+        "minimum_xy_spacing_mm": 2.0,
+        "bbox_overlaps": []
+      },
+      {
+        "name": "petg_small_parts_plate",
+        "bbox_mm": [
+          121.0,
+          75.0,
+          7.0
+        ],
+        "object_count": 7,
+        "fits_h2d_xy": true,
+        "minimum_xy_spacing_mm": 2.0,
+        "bbox_overlaps": []
+      },
+      {
+        "name": "tpu_parts_plate",
+        "bbox_mm": [
+          143.0,
+          122.0,
+          3.0
+        ],
+        "object_count": 20,
+        "fits_h2d_xy": true,
+        "minimum_xy_spacing_mm": 2.0,
+        "bbox_overlaps": []
+      }
+    ],
+    "failures": []
+  },
+  "strength": {
+    "method": "simply-supported composite beam screen",
+    "material_allowable_mpa": 15.0,
+    "elastic_modulus_mpa": 2000.0,
+    "hand_load_n": 20.0,
+    "tray_second_moment_mm4": 1723.9510675647678,
+    "tray_bending_stress_mpa": 5.807100545986663,
+    "tray_bending_safety_factor": 2.5830446504609994,
+    "tray_center_deflection_mm": 2.644303056784451,
+    "side_carriage_stress_mpa": 5.0,
+    "side_carriage_safety_factor": 3.0,
+    "caveat": "first-order screen only; layer adhesion and fatigue require prototype testing"
+  },
+  "interfaces": [
+    {
+      "checks": [
+        {
+          "a": "base",
+          "b": "fixed_side_frame_left",
+          "distance_mm": 0.0,
+          "overlap_mm3": 0
+        },
+        {
+          "a": "keyboard_tray",
+          "b": "keyboard_carriage_left",
+          "distance_mm": 0.0,
+          "overlap_mm3": 0
+        },
+        {
+          "a": "trackpad_tray",
+          "b": "trackpad_carriage_left",
+          "distance_mm": 0.0,
+          "overlap_mm3": 0
+        },
+        {
+          "a": "keyboard_guide_shaft_left_1",
+          "b": "keyboard_guide_bearing_left_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "keyboard_guide_bearing_left_1",
+          "b": "keyboard_guide_retaining_washer_left_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "keyboard_guide_retaining_washer_left_1",
+          "b": "keyboard_guide_retaining_nut_left_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "keyboard_guide_shaft_left_2",
+          "b": "keyboard_guide_bearing_left_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "keyboard_guide_bearing_left_2",
+          "b": "keyboard_guide_retaining_washer_left_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "keyboard_guide_retaining_washer_left_2",
+          "b": "keyboard_guide_retaining_nut_left_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "trackpad_guide_shaft_left_1",
+          "b": "trackpad_guide_bearing_left_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "trackpad_guide_bearing_left_1",
+          "b": "trackpad_guide_retaining_washer_left_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "trackpad_guide_retaining_washer_left_1",
+          "b": "trackpad_guide_retaining_nut_left_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "trackpad_guide_shaft_left_2",
+          "b": "trackpad_guide_bearing_left_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "trackpad_guide_bearing_left_2",
+          "b": "trackpad_guide_retaining_washer_left_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "trackpad_guide_retaining_washer_left_2",
+          "b": "trackpad_guide_retaining_nut_left_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "cross_shaft_left_1",
+          "b": "cross_bearing_left_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "cross_bearing_left_1",
+          "b": "cross_retaining_washer_left_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "cross_retaining_washer_left_1",
+          "b": "cross_retaining_nut_left_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "cross_shaft_left_2",
+          "b": "cross_bearing_left_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "cross_bearing_left_2",
+          "b": "cross_retaining_washer_left_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "cross_retaining_washer_left_2",
+          "b": "cross_retaining_nut_left_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "base",
+          "b": "fixed_side_frame_right",
+          "distance_mm": 0.0,
+          "overlap_mm3": 0
+        },
+        {
+          "a": "keyboard_tray",
+          "b": "keyboard_float_washer_right_1",
+          "distance_mm": 0.0,
+          "overlap_mm3": 0
+        },
+        {
+          "a": "keyboard_float_washer_right_1",
+          "b": "keyboard_carriage_right",
+          "distance_mm": 2.842170943040401e-14,
+          "overlap_mm3": 0
+        },
+        {
+          "a": "trackpad_tray",
+          "b": "trackpad_float_washer_right_1",
+          "distance_mm": 0.0,
+          "overlap_mm3": 0
+        },
+        {
+          "a": "trackpad_float_washer_right_1",
+          "b": "trackpad_carriage_right",
+          "distance_mm": 2.842170943040401e-14,
+          "overlap_mm3": 0
+        },
+        {
+          "a": "keyboard_guide_shaft_right_1",
+          "b": "keyboard_guide_bearing_right_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "keyboard_guide_bearing_right_1",
+          "b": "keyboard_guide_retaining_washer_right_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "keyboard_guide_retaining_washer_right_1",
+          "b": "keyboard_guide_retaining_nut_right_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "keyboard_guide_shaft_right_2",
+          "b": "keyboard_guide_bearing_right_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "keyboard_guide_bearing_right_2",
+          "b": "keyboard_guide_retaining_washer_right_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "keyboard_guide_retaining_washer_right_2",
+          "b": "keyboard_guide_retaining_nut_right_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "trackpad_guide_shaft_right_1",
+          "b": "trackpad_guide_bearing_right_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "trackpad_guide_bearing_right_1",
+          "b": "trackpad_guide_retaining_washer_right_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "trackpad_guide_retaining_washer_right_1",
+          "b": "trackpad_guide_retaining_nut_right_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "trackpad_guide_shaft_right_2",
+          "b": "trackpad_guide_bearing_right_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "trackpad_guide_bearing_right_2",
+          "b": "trackpad_guide_retaining_washer_right_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "trackpad_guide_retaining_washer_right_2",
+          "b": "trackpad_guide_retaining_nut_right_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "cross_shaft_right_1",
+          "b": "cross_bearing_right_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "cross_bearing_right_1",
+          "b": "cross_retaining_washer_right_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "cross_retaining_washer_right_1",
+          "b": "cross_retaining_nut_right_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "cross_shaft_right_2",
+          "b": "cross_bearing_right_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "cross_bearing_right_2",
+          "b": "cross_retaining_washer_right_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "cross_retaining_washer_right_2",
+          "b": "cross_retaining_nut_right_2",
+          "distance_mm": 0.0
+        }
+      ],
+      "disconnected": [],
+      "minimum_cross_end_margin_mm": 5.160647348449743,
+      "minimum_stop_before_slot_end_mm": 5.0
+    },
+    {
+      "checks": [
+        {
+          "a": "base",
+          "b": "fixed_side_frame_left",
+          "distance_mm": 0.0,
+          "overlap_mm3": 0
+        },
+        {
+          "a": "keyboard_tray",
+          "b": "keyboard_carriage_left",
+          "distance_mm": 0.0,
+          "overlap_mm3": 0
+        },
+        {
+          "a": "trackpad_tray",
+          "b": "trackpad_carriage_left",
+          "distance_mm": 0.0,
+          "overlap_mm3": 0
+        },
+        {
+          "a": "keyboard_guide_shaft_left_1",
+          "b": "keyboard_guide_bearing_left_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "keyboard_guide_bearing_left_1",
+          "b": "keyboard_guide_retaining_washer_left_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "keyboard_guide_retaining_washer_left_1",
+          "b": "keyboard_guide_retaining_nut_left_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "keyboard_guide_shaft_left_2",
+          "b": "keyboard_guide_bearing_left_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "keyboard_guide_bearing_left_2",
+          "b": "keyboard_guide_retaining_washer_left_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "keyboard_guide_retaining_washer_left_2",
+          "b": "keyboard_guide_retaining_nut_left_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "trackpad_guide_shaft_left_1",
+          "b": "trackpad_guide_bearing_left_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "trackpad_guide_bearing_left_1",
+          "b": "trackpad_guide_retaining_washer_left_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "trackpad_guide_retaining_washer_left_1",
+          "b": "trackpad_guide_retaining_nut_left_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "trackpad_guide_shaft_left_2",
+          "b": "trackpad_guide_bearing_left_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "trackpad_guide_bearing_left_2",
+          "b": "trackpad_guide_retaining_washer_left_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "trackpad_guide_retaining_washer_left_2",
+          "b": "trackpad_guide_retaining_nut_left_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "cross_shaft_left_1",
+          "b": "cross_bearing_left_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "cross_bearing_left_1",
+          "b": "cross_retaining_washer_left_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "cross_retaining_washer_left_1",
+          "b": "cross_retaining_nut_left_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "cross_shaft_left_2",
+          "b": "cross_bearing_left_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "cross_bearing_left_2",
+          "b": "cross_retaining_washer_left_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "cross_retaining_washer_left_2",
+          "b": "cross_retaining_nut_left_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "base",
+          "b": "fixed_side_frame_right",
+          "distance_mm": 0.0,
+          "overlap_mm3": 0
+        },
+        {
+          "a": "keyboard_tray",
+          "b": "keyboard_float_washer_right_1",
+          "distance_mm": 0.0,
+          "overlap_mm3": 0
+        },
+        {
+          "a": "keyboard_float_washer_right_1",
+          "b": "keyboard_carriage_right",
+          "distance_mm": 2.842170943040401e-14,
+          "overlap_mm3": 0
+        },
+        {
+          "a": "trackpad_tray",
+          "b": "trackpad_float_washer_right_1",
+          "distance_mm": 0.0,
+          "overlap_mm3": 0
+        },
+        {
+          "a": "trackpad_float_washer_right_1",
+          "b": "trackpad_carriage_right",
+          "distance_mm": 2.842170943040401e-14,
+          "overlap_mm3": 0
+        },
+        {
+          "a": "keyboard_guide_shaft_right_1",
+          "b": "keyboard_guide_bearing_right_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "keyboard_guide_bearing_right_1",
+          "b": "keyboard_guide_retaining_washer_right_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "keyboard_guide_retaining_washer_right_1",
+          "b": "keyboard_guide_retaining_nut_right_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "keyboard_guide_shaft_right_2",
+          "b": "keyboard_guide_bearing_right_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "keyboard_guide_bearing_right_2",
+          "b": "keyboard_guide_retaining_washer_right_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "keyboard_guide_retaining_washer_right_2",
+          "b": "keyboard_guide_retaining_nut_right_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "trackpad_guide_shaft_right_1",
+          "b": "trackpad_guide_bearing_right_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "trackpad_guide_bearing_right_1",
+          "b": "trackpad_guide_retaining_washer_right_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "trackpad_guide_retaining_washer_right_1",
+          "b": "trackpad_guide_retaining_nut_right_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "trackpad_guide_shaft_right_2",
+          "b": "trackpad_guide_bearing_right_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "trackpad_guide_bearing_right_2",
+          "b": "trackpad_guide_retaining_washer_right_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "trackpad_guide_retaining_washer_right_2",
+          "b": "trackpad_guide_retaining_nut_right_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "cross_shaft_right_1",
+          "b": "cross_bearing_right_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "cross_bearing_right_1",
+          "b": "cross_retaining_washer_right_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "cross_retaining_washer_right_1",
+          "b": "cross_retaining_nut_right_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "cross_shaft_right_2",
+          "b": "cross_bearing_right_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "cross_bearing_right_2",
+          "b": "cross_retaining_washer_right_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "cross_retaining_washer_right_2",
+          "b": "cross_retaining_nut_right_2",
+          "distance_mm": 0.0
+        }
+      ],
+      "disconnected": [],
+      "minimum_cross_end_margin_mm": 5.160647348449743,
+      "minimum_stop_before_slot_end_mm": 5.0
+    },
+    {
+      "checks": [
+        {
+          "a": "base",
+          "b": "fixed_side_frame_left",
+          "distance_mm": 0.0,
+          "overlap_mm3": 0
+        },
+        {
+          "a": "keyboard_tray",
+          "b": "keyboard_carriage_left",
+          "distance_mm": 0.0,
+          "overlap_mm3": 0
+        },
+        {
+          "a": "trackpad_tray",
+          "b": "trackpad_carriage_left",
+          "distance_mm": 0.0,
+          "overlap_mm3": 0
+        },
+        {
+          "a": "keyboard_guide_shaft_left_1",
+          "b": "keyboard_guide_bearing_left_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "keyboard_guide_bearing_left_1",
+          "b": "keyboard_guide_retaining_washer_left_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "keyboard_guide_retaining_washer_left_1",
+          "b": "keyboard_guide_retaining_nut_left_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "keyboard_guide_shaft_left_2",
+          "b": "keyboard_guide_bearing_left_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "keyboard_guide_bearing_left_2",
+          "b": "keyboard_guide_retaining_washer_left_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "keyboard_guide_retaining_washer_left_2",
+          "b": "keyboard_guide_retaining_nut_left_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "trackpad_guide_shaft_left_1",
+          "b": "trackpad_guide_bearing_left_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "trackpad_guide_bearing_left_1",
+          "b": "trackpad_guide_retaining_washer_left_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "trackpad_guide_retaining_washer_left_1",
+          "b": "trackpad_guide_retaining_nut_left_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "trackpad_guide_shaft_left_2",
+          "b": "trackpad_guide_bearing_left_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "trackpad_guide_bearing_left_2",
+          "b": "trackpad_guide_retaining_washer_left_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "trackpad_guide_retaining_washer_left_2",
+          "b": "trackpad_guide_retaining_nut_left_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "cross_shaft_left_1",
+          "b": "cross_bearing_left_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "cross_bearing_left_1",
+          "b": "cross_retaining_washer_left_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "cross_retaining_washer_left_1",
+          "b": "cross_retaining_nut_left_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "cross_shaft_left_2",
+          "b": "cross_bearing_left_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "cross_bearing_left_2",
+          "b": "cross_retaining_washer_left_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "cross_retaining_washer_left_2",
+          "b": "cross_retaining_nut_left_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "base",
+          "b": "fixed_side_frame_right",
+          "distance_mm": 0.0,
+          "overlap_mm3": 0
+        },
+        {
+          "a": "keyboard_tray",
+          "b": "keyboard_float_washer_right_1",
+          "distance_mm": 0.0,
+          "overlap_mm3": 0
+        },
+        {
+          "a": "keyboard_float_washer_right_1",
+          "b": "keyboard_carriage_right",
+          "distance_mm": 2.842170943040401e-14,
+          "overlap_mm3": 0
+        },
+        {
+          "a": "trackpad_tray",
+          "b": "trackpad_float_washer_right_1",
+          "distance_mm": 0.0,
+          "overlap_mm3": 0
+        },
+        {
+          "a": "trackpad_float_washer_right_1",
+          "b": "trackpad_carriage_right",
+          "distance_mm": 2.842170943040401e-14,
+          "overlap_mm3": 0
+        },
+        {
+          "a": "keyboard_guide_shaft_right_1",
+          "b": "keyboard_guide_bearing_right_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "keyboard_guide_bearing_right_1",
+          "b": "keyboard_guide_retaining_washer_right_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "keyboard_guide_retaining_washer_right_1",
+          "b": "keyboard_guide_retaining_nut_right_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "keyboard_guide_shaft_right_2",
+          "b": "keyboard_guide_bearing_right_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "keyboard_guide_bearing_right_2",
+          "b": "keyboard_guide_retaining_washer_right_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "keyboard_guide_retaining_washer_right_2",
+          "b": "keyboard_guide_retaining_nut_right_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "trackpad_guide_shaft_right_1",
+          "b": "trackpad_guide_bearing_right_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "trackpad_guide_bearing_right_1",
+          "b": "trackpad_guide_retaining_washer_right_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "trackpad_guide_retaining_washer_right_1",
+          "b": "trackpad_guide_retaining_nut_right_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "trackpad_guide_shaft_right_2",
+          "b": "trackpad_guide_bearing_right_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "trackpad_guide_bearing_right_2",
+          "b": "trackpad_guide_retaining_washer_right_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "trackpad_guide_retaining_washer_right_2",
+          "b": "trackpad_guide_retaining_nut_right_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "cross_shaft_right_1",
+          "b": "cross_bearing_right_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "cross_bearing_right_1",
+          "b": "cross_retaining_washer_right_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "cross_retaining_washer_right_1",
+          "b": "cross_retaining_nut_right_1",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "cross_shaft_right_2",
+          "b": "cross_bearing_right_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "cross_bearing_right_2",
+          "b": "cross_retaining_washer_right_2",
+          "distance_mm": 0.0
+        },
+        {
+          "a": "cross_retaining_washer_right_2",
+          "b": "cross_retaining_nut_right_2",
+          "distance_mm": 0.0
+        }
+      ],
+      "disconnected": [],
+      "minimum_cross_end_margin_mm": 5.160647348449743,
+      "minimum_stop_before_slot_end_mm": 5.0
+    }
+  ],
+  "clearance": {
+    "bearing_to_slot_end_mm": 5.0,
+    "hard_stop_before_slot_end_mm": 3.0
+  },
+  "errors": [],
+  "export_manifest": {
+    "poses": [
+      "keyboard_mode.step",
+      "mid_mode.step",
+      "trackpad_mode.step",
+      "master_assembly.step",
+      "roller_detail_assembled.step",
+      "roller_detail_exploded.step"
+    ],
+    "parts": [
+      {
+        "name": "base",
+        "step": "base.step",
+        "stl": "base.stl"
+      },
+      {
+        "name": "side_frame_left",
+        "step": "side_frame_left.step",
+        "stl": "side_frame_left.stl"
+      },
+      {
+        "name": "side_frame_right",
+        "step": "side_frame_right.step",
+        "stl": "side_frame_right.stl"
+      },
+      {
+        "name": "keyboard_tray",
+        "step": "keyboard_tray.step",
+        "stl": "keyboard_tray.stl"
+      },
+      {
+        "name": "trackpad_tray",
+        "step": "trackpad_tray.step",
+        "stl": "trackpad_tray.stl"
+      },
+      {
+        "name": "keyboard_carriage_left",
+        "step": "keyboard_carriage_left.step",
+        "stl": "keyboard_carriage_left.stl"
+      },
+      {
+        "name": "keyboard_carriage_right",
+        "step": "keyboard_carriage_right.step",
+        "stl": "keyboard_carriage_right.stl"
+      },
+      {
+        "name": "trackpad_carriage_left",
+        "step": "trackpad_carriage_left.step",
+        "stl": "trackpad_carriage_left.stl"
+      },
+      {
+        "name": "trackpad_carriage_right",
+        "step": "trackpad_carriage_right.step",
+        "stl": "trackpad_carriage_right.stl"
+      },
+      {
+        "name": "cross_eccentric_bushing",
+        "step": "cross_eccentric_bushing.step",
+        "stl": "cross_eccentric_bushing.stl"
+      },
+      {
+        "name": "guide_eccentric_bushing",
+        "step": "guide_eccentric_bushing.step",
+        "stl": "guide_eccentric_bushing.stl"
+      },
+      {
+        "name": "tpu_stop_collar",
+        "step": "tpu_stop_collar.step",
+        "stl": "tpu_stop_collar.stl"
+      },
+      {
+        "name": "right_float_washer",
+        "step": "right_float_washer.step",
+        "stl": "right_float_washer.stl"
+      },
+      {
+        "name": "keyboard_tpu_pad",
+        "step": "keyboard_tpu_pad.step",
+        "stl": "keyboard_tpu_pad.stl"
+      },
+      {
+        "name": "trackpad_tpu_pad",
+        "step": "trackpad_tpu_pad.step",
+        "stl": "trackpad_tpu_pad.stl"
+      },
+      {
+        "name": "tpu_base_foot",
+        "step": "tpu_base_foot.step",
+        "stl": "tpu_base_foot.stl"
+      },
+      {
+        "name": "calibration_coupon",
+        "step": "calibration_coupon.step",
+        "stl": "calibration_coupon.stl"
+      }
+    ],
+    "plates": [
+      {
+        "name": "base_plate",
+        "step": "base_plate.step",
+        "3mf": "base_plate.3mf",
+        "structure": {
+          "object_count": 2,
+          "build_item_count": 1,
+          "root_label": "v10_base_plate",
+          "component_count": 1
+        }
+      },
+      {
+        "name": "trays_plate",
+        "step": "trays_plate.step",
+        "3mf": "trays_plate.3mf",
+        "structure": {
+          "object_count": 3,
+          "build_item_count": 1,
+          "root_label": "v10_trays_plate",
+          "component_count": 2
+        }
+      },
+      {
+        "name": "frames_plate",
+        "step": "frames_plate.step",
+        "3mf": "frames_plate.3mf",
+        "structure": {
+          "object_count": 3,
+          "build_item_count": 1,
+          "root_label": "v10_frames_plate",
+          "component_count": 2
+        }
+      },
+      {
+        "name": "carriages_plate",
+        "step": "carriages_plate.step",
+        "3mf": "carriages_plate.3mf",
+        "structure": {
+          "object_count": 5,
+          "build_item_count": 1,
+          "root_label": "v10_carriages_plate",
+          "component_count": 4
+        }
+      },
+      {
+        "name": "petg_small_parts_plate",
+        "step": "petg_small_parts_plate.step",
+        "3mf": "petg_small_parts_plate.3mf",
+        "structure": {
+          "object_count": 8,
+          "build_item_count": 1,
+          "root_label": "v10_petg_small_parts_plate",
+          "component_count": 7
+        }
+      },
+      {
+        "name": "tpu_parts_plate",
+        "step": "tpu_parts_plate.step",
+        "3mf": "tpu_parts_plate.3mf",
+        "structure": {
+          "object_count": 33,
+          "build_item_count": 1,
+          "root_label": "v10_tpu_parts_plate",
+          "component_count": 20
+        }
+      }
+    ],
+    "generated_utc": "2026-07-15T17:07:06.396032+00:00"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "input": "/Users/bytedance/Documents/Codex/2026-07-15/keyboard-trackpad-cross-axis-redesign/outputs/ap-flat-reel-floating-z-coupon-v1/cylinder_section_exploded.step",
+  "workspaceRoot": "/Users/bytedance/Documents/Codex/2026-07-15/keyboard-trackpad-cross-axis-redesign",
+  "rootDir": "outputs/ap-flat-reel-floating-z-coupon-v1",
+  "mode": "view",
+  "outputs": [
+    {"path": "/Users/bytedance/Documents/Codex/2026-07-15/keyboard-trackpad-cross-axis-redesign/outputs/ap-flat-reel-floating-z-coupon-v1/render/exploded_iso.png", "camera": "iso", "width": 1800, "height": 1200},
+    {"path": "/Users/bytedance/Documents/Codex/2026-07-15/keyboard-trackpad-cross-axis-redesign/outputs/ap-flat-reel-floating-z-coupon-v1/render/exploded_front.png", "camera": "front", "width": 1800, "height": 1200}
+  ],
+  "theme": {"id": "workbench", "settings": null},
+  "render": {"viewLabels": true, "padding": 0.12, "sizeProfile": "assembly"}
+}
