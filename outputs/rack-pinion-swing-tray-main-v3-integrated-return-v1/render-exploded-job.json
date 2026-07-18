@@ -1,0 +1,11 @@
+{
+  "input": "/Users/bytedance/Documents/Codex/2026-07-15/keyboard-trackpad-cross-axis-redesign/.worktrees/v3-integrated-return/outputs/rack-pinion-swing-tray-main-v3-integrated-return-v1/cylinder_return_section_exploded.step",
+  "workspaceRoot": "/Users/bytedance/Documents/Codex/2026-07-15/keyboard-trackpad-cross-axis-redesign/.worktrees/v3-integrated-return",
+  "rootDir": "outputs/rack-pinion-swing-tray-main-v3-integrated-return-v1",
+  "mode": "view",
+  "outputs": [
+    {"path": "/Users/bytedance/Documents/Codex/2026-07-15/keyboard-trackpad-cross-axis-redesign/.worktrees/v3-integrated-return/outputs/rack-pinion-swing-tray-main-v3-integrated-return-v1/render-review/cylinder_return_exploded_iso.png", "camera": "iso", "width": 1800, "height": 1200}
+  ],
+  "theme": {"id": "workbench", "settings": null},
+  "render": {"viewLabels": true, "padding": 0.12, "sizeProfile": "assembly"}
+}
