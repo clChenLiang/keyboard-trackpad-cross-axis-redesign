@@ -7,7 +7,7 @@ The reel axis is +Z and the straight run stays centred at ``BELT_Z``.
 
 from dataclasses import dataclass
 from math import atan2, cos, degrees, pi, radians, sin
-from typing import List, Sequence, Tuple
+from typing import List, Optional, Sequence, Tuple
 
 from build123d import (
     Align,
@@ -93,6 +93,18 @@ UPPER_RADIAL_HEIGHT = 4.0
 TOP_CAP_Z0 = 46.0
 TOP_CAP_HEIGHT = 3.0
 OUTPUT_SHAFT_RADIUS = 3.0
+OUTPUT_SHAFT_TOP_Z = 57.0
+SHAFT_KEY_RADIAL_MIN = 2.5
+SHAFT_KEY_RADIAL_MAX = 4.0
+SHAFT_KEY_WIDTH = 1.2
+KEYWAY_CLEARANCE = 0.10
+REEL_COLLAR_RADIUS = 5.0
+LOWER_REEL_COLLAR_Z0 = 28.2
+LOWER_REEL_COLLAR_HEIGHT = REEL_Z0 - LOWER_REEL_COLLAR_Z0
+UPPER_REEL_COLLAR_Z0 = REEL_Z1
+UPPER_REEL_COLLAR_HEIGHT = 0.8
+TORQUE_WITNESS_ANGLE_DEG = 2.0
+AXIAL_RETENTION_WITNESS_TRAVEL = 0.02
 BEARING_BORE_RADIUS = 3.1
 HOUSING_OUTER_RADIUS = 21.0
 HOUSING_INNER_RADIUS = 18.5
@@ -177,6 +189,13 @@ class CartridgeStackReport:
     top_cap_wedge_blocking_overlap_volume: float
     top_cap_removed_service_overlap_volume: float
     housing_outer_diameter: float
+    reel_shaft_nominal_penetration_volume: float
+    torque_rotation_witness_penetration_volume: float
+    smooth_bore_rotation_witness_penetration_volume: float
+    lower_reel_collar_distance: float
+    upper_reel_collar_distance: float
+    lower_axial_retention_witness_volume: float
+    upper_axial_retention_witness_volume: float
 
 
 @dataclass(frozen=True)
@@ -348,6 +367,29 @@ def _reel_pocket_support(travel: float) -> Tuple[Shape, Shape]:
     return floor, stop
 
 
+def _shaft_key_rib(travel: float, clearance: float = 0.0) -> Shape:
+    radial_min = SHAFT_KEY_RADIAL_MIN - clearance
+    radial_max = SHAFT_KEY_RADIAL_MAX + clearance
+    return _polar_box(
+        (radial_min + radial_max) / 2.0,
+        pose_state(travel).reel_angle_rad,
+        radial_max - radial_min,
+        SHAFT_KEY_WIDTH + 2.0 * clearance,
+        BELT_WIDTH + 2.0 * clearance,
+        BELT_Z,
+    )
+
+
+def _keyed_shaft_bore(travel: float) -> Shape:
+    round_bore = Cylinder(
+        OUTPUT_SHAFT_RADIUS,
+        BELT_WIDTH + 2.0,
+        align=(Align.CENTER, Align.CENTER, Align.MIN),
+    ).moved(Location((0.0, 0.0, REEL_Z0 - 1.0)))
+    keyway = _shaft_key_rib(travel, KEYWAY_CLEARANCE)
+    return round_bore + keyway
+
+
 def _reel_drum(travel: float) -> Shape:
     drum = Cylinder(
         DRUM_OUTER_RADIUS,
@@ -359,11 +401,7 @@ def _reel_drum(travel: float) -> Shape:
     # A broad radial pocket replaces five ordinary lands at the service end.
     for cell in _reel_wedge_outer_cells(travel):
         drum = drum - cell
-    shaft_bore = Cylinder(
-        OUTPUT_SHAFT_RADIUS,
-        BELT_WIDTH + 2.0,
-        align=(Align.CENTER, Align.CENTER, Align.MIN),
-    ).moved(Location((0.0, 0.0, REEL_Z0 - 1.0)))
+    shaft_bore = _keyed_shaft_bore(travel)
     drum = drum - shaft_bore
     floor, stop = _reel_pocket_support(travel)
     drum = (drum + floor + stop) - shaft_bore
@@ -843,16 +881,30 @@ def _upper_radial_bearing_seat() -> Shape:
     )
 
 
-def _vertical_output_shaft() -> Shape:
+def _vertical_output_shaft(travel: float = 0.5) -> Shape:
     shaft = Cylinder(
         OUTPUT_SHAFT_RADIUS,
-        57.0 - (LOWER_THRUST_Z0 + LOWER_THRUST_HEIGHT),
+        OUTPUT_SHAFT_TOP_Z - (LOWER_THRUST_Z0 + LOWER_THRUST_HEIGHT),
         align=(Align.CENTER, Align.CENTER, Align.MIN),
     ).moved(Location((0.0, 0.0, LOWER_THRUST_Z0 + LOWER_THRUST_HEIGHT)))
     thrust_shoulder = Cylinder(
         5.0, 1.0, align=(Align.CENTER, Align.CENTER, Align.MIN)
     ).moved(Location((0.0, 0.0, LOWER_THRUST_Z0 + LOWER_THRUST_HEIGHT)))
-    return _label(shaft + thrust_shoulder, "vertical_output_shaft")
+    lower_reel_collar = Cylinder(
+        REEL_COLLAR_RADIUS,
+        LOWER_REEL_COLLAR_HEIGHT,
+        align=(Align.CENTER, Align.CENTER, Align.MIN),
+    ).moved(Location((0.0, 0.0, LOWER_REEL_COLLAR_Z0)))
+    upper_reel_collar = Cylinder(
+        REEL_COLLAR_RADIUS,
+        UPPER_REEL_COLLAR_HEIGHT,
+        align=(Align.CENTER, Align.CENTER, Align.MIN),
+    ).moved(Location((0.0, 0.0, UPPER_REEL_COLLAR_Z0)))
+    key_rib = _shaft_key_rib(travel)
+    return _label(
+        shaft + thrust_shoulder + lower_reel_collar + upper_reel_collar + key_rib,
+        "vertical_output_shaft",
+    )
 
 
 def _return_spring() -> Shape:
@@ -1010,36 +1062,41 @@ def _shaft_rotating_stop_lug(travel: float) -> Shape:
     return _label(rotating_hub + radial_bridge, "shaft_rotating_stop_lug")
 
 
-def _stack_parts(travel: float, sectioned: bool) -> List[Shape]:
-    return [
+def _stack_parts(
+    travel: float, sectioned: bool, include_reel: bool = True
+) -> List[Shape]:
+    parts = [
         _lower_axial_thrust_interface(),
         _lower_radial_bearing_seat(),
         _return_spring(),
         _return_spring_inner_anchor(),
         _return_spring_outer_anchor(),
-        _reel_drum(travel),
-        _upper_radial_bearing_seat(),
-        _vertical_output_shaft(),
-        _fixed_cartridge_housing(sectioned),
-        _fixed_planar_belt_entry_guide(),
-        _removable_cartridge_top_cap(),
-        _keyboard_hard_stop(),
-        _trackpad_hard_stop(),
-        _shaft_rotating_stop_lug(travel),
     ]
+    if include_reel:
+        parts.append(_reel_drum(travel))
+    parts.extend(
+        [
+            _upper_radial_bearing_seat(),
+            _vertical_output_shaft(travel),
+            _fixed_cartridge_housing(sectioned),
+            _fixed_planar_belt_entry_guide(),
+            _removable_cartridge_top_cap(),
+            _keyboard_hard_stop(),
+            _trackpad_hard_stop(),
+            _shaft_rotating_stop_lug(travel),
+        ]
+    )
+    return parts
 
 
 def build_cartridge(
-    travel: float, sectioned: bool = False, include_belt: bool = True
+    travel: float, sectioned: bool = False, include_belt: bool = False
 ) -> Compound:
-    """Build a flat, separately selectable cartridge and optional Task 2 belt."""
+    """Build cartridge-exclusive parts, optionally composing the Task 2 belt."""
     pose_state(travel)
-    stack = _stack_parts(travel, sectioned)
+    stack = _stack_parts(travel, sectioned, include_reel=False)
     if include_belt:
-        belt_children = [
-            child for child in build_belt_system(travel).children if child.label != "reel_drum_41t"
-        ]
-        stack.extend(belt_children)
+        stack.extend(build_belt_system(travel).children)
     return _compound(f"v4_reel_cartridge_t{travel:.3f}", stack)
 
 
@@ -1056,7 +1113,7 @@ def build_cartridge_exploded(travel: float = 0.5) -> Compound:
         "removable_cartridge_top_cap": 26.0,
     }
     children = []
-    for child in build_cartridge(travel, sectioned=True, include_belt=False).children:
+    for child in build_cartridge(travel, sectioned=True, include_belt=True).children:
         dz = offsets.get(child.label, 0.0)
         children.append(child.moved(Location((0.0, 0.0, dz))) if dz else child)
     return _compound(f"v4_reel_cartridge_section_exploded_t{travel:.3f}", children)
@@ -1085,7 +1142,21 @@ def _actual_shaft_radial_support_facts(shaft: Shape, seat: Shape) -> Tuple[float
     )
 
 
-def cartridge_stack_report(shaft_override: Shape = None) -> CartridgeStackReport:
+def _actual_shaft_collar(
+    shaft: Shape, z0: float, height: float
+) -> Shape:
+    collar_region = _annular_cylinder(
+        REEL_COLLAR_RADIUS + 0.1,
+        OUTPUT_SHAFT_RADIUS + 0.01,
+        height,
+        z0,
+    )
+    return shaft & collar_region
+
+
+def cartridge_stack_report(
+    shaft_override: Optional[Shape] = None,
+) -> CartridgeStackReport:
     """Measure support, anchor, service, and envelope facts from nominal BREPs."""
     travel = 0.5
     parts = {part.label: part for part in _stack_parts(travel, False)}
@@ -1098,6 +1169,7 @@ def cartridge_stack_report(shaft_override: Shape = None) -> CartridgeStackReport
     outer_anchor = parts["return_spring_outer_anchor"]
     cap = parts["removable_cartridge_top_cap"]
     housing = parts["fixed_cartridge_housing"]
+    reel = parts["reel_drum_41t"]
     wedge, _ = _reel_wedge_and_pockets(travel)
 
     lower_radial_clearance, lower_radial_axial_overlap = _actual_shaft_radial_support_facts(
@@ -1112,6 +1184,24 @@ def cartridge_stack_report(shaft_override: Shape = None) -> CartridgeStackReport
     service_fixed = _compound("service_fixed_witness", [housing, upper_radial])
     housing_bounds = housing.bounding_box()
     minimum_component_z = min(part.bounding_box().min.Z for part in parts.values())
+    lower_reel_collar = _actual_shaft_collar(
+        shaft, LOWER_REEL_COLLAR_Z0, LOWER_REEL_COLLAR_HEIGHT
+    )
+    upper_reel_collar = _actual_shaft_collar(
+        shaft, UPPER_REEL_COLLAR_Z0, UPPER_REEL_COLLAR_HEIGHT
+    )
+    torque_witness_reel = reel.rotate(Axis.Z, TORQUE_WITNESS_ANGLE_DEG)
+    smooth_shaft = Cylinder(
+        OUTPUT_SHAFT_RADIUS,
+        BELT_WIDTH,
+        align=(Align.CENTER, Align.CENTER, Align.MIN),
+    ).moved(Location((0.0, 0.0, REEL_Z0)))
+    smooth_bore_reel = _annular_cylinder(
+        REEL_COLLAR_RADIUS,
+        OUTPUT_SHAFT_RADIUS,
+        BELT_WIDTH,
+        REEL_Z0,
+    ).rotate(Axis.Z, TORQUE_WITNESS_ANGLE_DEG)
 
     return CartridgeStackReport(
         minimum_component_z=minimum_component_z,
@@ -1137,6 +1227,21 @@ def cartridge_stack_report(shaft_override: Shape = None) -> CartridgeStackReport
         top_cap_wedge_blocking_overlap_volume=(blocking_wedge & cap).volume,
         top_cap_removed_service_overlap_volume=(service_wedge & service_fixed).volume,
         housing_outer_diameter=housing_bounds.max.X - housing_bounds.min.X,
+        reel_shaft_nominal_penetration_volume=(reel & shaft).volume,
+        torque_rotation_witness_penetration_volume=(torque_witness_reel & shaft).volume,
+        smooth_bore_rotation_witness_penetration_volume=(
+            smooth_bore_reel & smooth_shaft
+        ).volume,
+        lower_reel_collar_distance=reel.distance_to(lower_reel_collar),
+        upper_reel_collar_distance=reel.distance_to(upper_reel_collar),
+        lower_axial_retention_witness_volume=(
+            reel.moved(Location((0.0, 0.0, -AXIAL_RETENTION_WITNESS_TRAVEL)))
+            & lower_reel_collar
+        ).volume,
+        upper_axial_retention_witness_volume=(
+            reel.moved(Location((0.0, 0.0, AXIAL_RETENTION_WITNESS_TRAVEL)))
+            & upper_reel_collar
+        ).volume,
     )
 
 

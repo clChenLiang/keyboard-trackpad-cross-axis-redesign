@@ -10,6 +10,7 @@ from v4_kinematics import BELT_PITCH, BELT_TOTAL_CENTERLINE, BELT_Z, FEED_TRAVEL
 from v4_reel_cartridge import (
     BASE_STRUCTURAL_UNDERSIDE_Z,
     BASE_TOP_Z,
+    OUTPUT_SHAFT_TOP_Z,
     BACKING_THICKNESS,
     BELT_WIDTH,
     TOOTH_DEPTH,
@@ -42,25 +43,44 @@ CARTRIDGE_LABELS = {
     "independent_hard_stop_trackpad",
     "shaft_rotating_stop_lug",
 }
+CARTRIDGE_STACK_LABELS = CARTRIDGE_LABELS - {"reel_drum_41t"}
+BELT_SYSTEM_LABELS = {
+    "flexible_belt_backing",
+    "flexible_belt_teeth",
+    "reel_end_tooth_wedge",
+    "slider_end_tooth_wedge",
+    "reel_drum_41t",
+    "screwless_belt_end_slider",
+}
 
 
 def test_cartridge_stack_entities_are_flat_unique_valid_positive_volume_parts():
     cartridge = build_cartridge(0.5, include_belt=False)
     labels = [child.label for child in cartridge.children]
 
-    assert CARTRIDGE_LABELS <= set(labels)
+    assert CARTRIDGE_STACK_LABELS == set(labels)
     assert len(labels) == len(set(labels))
     for child in cartridge.children:
         assert child.is_valid(), child.label
         assert child.volume > 0.0, child.label
-        if child.label in CARTRIDGE_LABELS:
+        if child.label in CARTRIDGE_STACK_LABELS:
             assert len(child.solids()) == 1, child.label
 
 
-def test_cartridge_can_omit_belt_without_losing_the_reused_reel():
-    labels = {child.label for child in build_cartridge(0.5, include_belt=False).children}
+def test_default_cartridge_is_the_unambiguous_stack_only_builder():
+    labels = {child.label for child in build_cartridge(0.5).children}
 
-    assert labels == CARTRIDGE_LABELS
+    assert labels == CARTRIDGE_STACK_LABELS
+
+
+@pytest.mark.parametrize("travel", [0.0, 0.5, 1.0])
+def test_belt_plus_default_cartridge_composes_with_exactly_one_owner_per_label(travel):
+    children = [*build_belt_system(travel).children, *build_cartridge(travel).children]
+    labels = [child.label for child in children]
+
+    assert len(labels) == len(set(labels))
+    for label in BELT_SYSTEM_LABELS:
+        assert labels.count(label) == 1
 
 
 def test_stack_report_is_immutable_and_measures_above_base_supports_and_housing():
@@ -90,6 +110,13 @@ def test_stack_report_is_immutable_and_measures_above_base_supports_and_housing(
     assert report.top_cap_wedge_blocking_overlap_volume > 1e-3
     assert report.top_cap_removed_service_overlap_volume < 1e-6
     assert 38.0 <= report.housing_outer_diameter <= 42.0
+    assert report.reel_shaft_nominal_penetration_volume < 1e-6
+    assert report.torque_rotation_witness_penetration_volume > 1e-3
+    assert report.smooth_bore_rotation_witness_penetration_volume < 1e-6
+    assert report.lower_reel_collar_distance <= 1e-6
+    assert report.upper_reel_collar_distance <= 1e-6
+    assert report.lower_axial_retention_witness_volume > 1e-3
+    assert report.upper_axial_retention_witness_volume > 1e-3
 
     with pytest.raises(FrozenInstanceError):
         report.housing_outer_diameter = 0.0
@@ -159,6 +186,16 @@ def test_spring_model_parameters_are_explicitly_provisional():
     assert v4_reel_cartridge.PROVISIONAL_SPRING_PRELOAD_DEG >= 0.0
 
 
+def test_output_shaft_has_named_top_datum_and_keyed_bidirectional_reel_retention():
+    assert OUTPUT_SHAFT_TOP_Z == pytest.approx(57.0)
+    shaft = v4_reel_cartridge._vertical_output_shaft()
+    reel = v4_reel_cartridge._reel_drum(0.5)
+
+    assert len(shaft.solids()) == 1
+    assert len(reel.solids()) == 1
+    assert (shaft & reel).volume < 1e-6
+
+
 def test_sectioned_cartridge_preserves_labels_and_exposes_a_valid_housing():
     cartridge = build_cartridge(0.5, sectioned=True, include_belt=False)
     children = {child.label: child for child in cartridge.children}
@@ -167,7 +204,7 @@ def test_sectioned_cartridge_preserves_labels_and_exposes_a_valid_housing():
         for child in build_cartridge(0.5, include_belt=False).children
     }
 
-    assert CARTRIDGE_LABELS <= children.keys()
+    assert CARTRIDGE_STACK_LABELS == children.keys()
     assert children["fixed_cartridge_housing"].is_valid()
     assert (
         0.0
@@ -181,6 +218,42 @@ def test_section_exploded_entrypoint_reuses_the_labeled_cartridge_builder():
 
     assert exploded.label.startswith("v4_reel_cartridge_section_exploded")
     assert CARTRIDGE_LABELS <= {child.label for child in exploded.children}
+
+
+def test_exploded_view_has_exact_mapped_offsets_and_preserves_coaxial_centers():
+    expected_dz = {
+        "lower_axial_thrust_interface": -8.0,
+        "lower_radial_bearing_seat": -4.0,
+        "above_base_return_spring": 5.0,
+        "return_spring_inner_anchor": 5.0,
+        "return_spring_outer_anchor": 5.0,
+        "reel_drum_41t": 10.0,
+        "upper_radial_bearing_seat": 18.0,
+        "removable_cartridge_top_cap": 26.0,
+    }
+    nominal_build = build_cartridge(0.5, sectioned=True, include_belt=True)
+    nominal_centers = {
+        child.label: child.bounding_box().center()
+        for child in nominal_build.children
+        if child.label in expected_dz
+    }
+    del nominal_build
+    exploded = {
+        child.label: child for child in reel_cartridge_section_exploded.gen_step().children
+    }
+
+    for label, dz in expected_dz.items():
+        before = nominal_centers[label]
+        after = exploded[label].bounding_box().center()
+        assert after.X == pytest.approx(before.X, abs=1e-6)
+        assert after.Y == pytest.approx(before.Y, abs=1e-6)
+        assert after.Z - before.Z == pytest.approx(dz, abs=1e-6)
+
+    normal_housing = {
+        child.label: child
+        for child in build_cartridge(0.5, sectioned=False).children
+    }["fixed_cartridge_housing"]
+    assert exploded["fixed_cartridge_housing"].volume < normal_housing.volume
 
 
 @pytest.mark.parametrize("travel", [0.0, 0.5, 1.0])
