@@ -1,0 +1,11 @@
+{
+  "input": "/Users/bytedance/Documents/Codex/2026-07-15/keyboard-trackpad-cross-axis-redesign/.worktrees/v3-open-frame-base/outputs/rack-pinion-swing-tray-main-v4-low-profile-reel-cartridge-v1/reel_cartridge_section_exploded.step",
+  "workspaceRoot": "/Users/bytedance/Documents/Codex/2026-07-15/keyboard-trackpad-cross-axis-redesign/.worktrees/v3-open-frame-base",
+  "rootDir": "outputs/rack-pinion-swing-tray-main-v4-low-profile-reel-cartridge-v1",
+  "mode": "view",
+  "outputs": [
+    {"path": "/Users/bytedance/Documents/Codex/2026-07-15/keyboard-trackpad-cross-axis-redesign/.worktrees/v3-open-frame-base/outputs/rack-pinion-swing-tray-main-v4-low-profile-reel-cartridge-v1/render-review/cartridge_section_iso.png", "camera": "iso", "width": 1920, "height": 1440}
+  ],
+  "theme": {"id": "workbench", "settings": null},
+  "render": {"viewLabels": true, "padding": 0.12, "sizeProfile": "assembly"}
+}
