@@ -129,6 +129,8 @@ INTENDED_CONTACT_ALLOWLIST = frozenset(
         ("screwless_belt_end_slider", "belt_slider_drive_adapter"),
         ("flexible_belt_backing", "fixed_planar_belt_entry_guide"),
         ("flexible_belt_teeth", "fixed_planar_belt_entry_guide"),
+        ("flexible_belt_backing", "reel_drum_41t"),
+        ("flexible_belt_teeth", "reel_drum_41t"),
         *RECEIVER_BASE_INTEGRATION_ALLOWLIST,
         *(
             ("rounded_low_profile_base", f"removable_keyboard_guide_{position}")
@@ -220,8 +222,13 @@ def _floating_z_drive_fork(
     y_clearance = 0.10
     rail_depth = 1.0
     rail_offset = key_half_depth + y_clearance + rail_depth / 2.0
-    front_rail = _box(2.60, rail_depth, height, adapter_x, fork_y - rail_offset, z0)
-    rear_rail = _box(2.60, rail_depth, height, adapter_x, fork_y + rail_offset, z0)
+    # Keep the fork wholly on the shaft side of the fixed entry-guide sidewall.
+    # The 2.0 mm rails still overlap the 1.6 mm adapter key in X, while their
+    # 0.10 mm guide-side clearance removes the terminal-pose BREP collision.
+    rail_width = 2.0
+    rail_x = adapter_x - 0.40
+    front_rail = _box(rail_width, rail_depth, height, rail_x, fork_y - rail_offset, z0)
+    rear_rail = _box(rail_width, rail_depth, height, rail_x, fork_y + rail_offset, z0)
     web = _box(2.0, 2.0 * (rail_offset + rail_depth / 2.0), height, adapter_x - 2.30, fork_y, z0)
     # The full-height web overlaps the tongue directly at its top edge; no
     # cross-key bridge is needed, so the adapter remains free to slide in Z.
@@ -413,6 +420,7 @@ def _changed_pair_names() -> tuple[tuple[str, str], ...]:
             "eccentric_horizontal_swing_arm",
         )
     )
+    pairs.append(("floating_z_drive_fork", "fixed_planar_belt_entry_guide"))
     for belt in ("flexible_belt_backing", "flexible_belt_teeth"):
         pairs.extend(
             (belt, fixed)
@@ -422,6 +430,7 @@ def _changed_pair_names() -> tuple[tuple[str, str], ...]:
                 "floating_z_drive_fork",
             )
         )
+        pairs.append((belt, "reel_drum_41t"))
     pairs.extend(
         ("eccentric_horizontal_swing_arm", fixed)
         for fixed in ("removable_cartridge_top_cap", "fixed_cartridge_housing")

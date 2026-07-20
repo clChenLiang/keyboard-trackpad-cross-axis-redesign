@@ -96,6 +96,42 @@ def test_changed_interface_collision_report_has_only_named_clean_pairs():
         report.poses = ()
 
 
+def test_collision_report_covers_every_changed_belt_drum_and_guide_pair():
+    report = interference_report(POSES)
+    required_pairs = {
+        frozenset(("floating_z_drive_fork", "fixed_planar_belt_entry_guide")),
+        frozenset(("flexible_belt_backing", "reel_drum_41t")),
+        frozenset(("flexible_belt_teeth", "reel_drum_41t")),
+        frozenset(("flexible_belt_backing", "fixed_cartridge_housing")),
+        frozenset(("flexible_belt_backing", "fixed_planar_belt_entry_guide")),
+        frozenset(("flexible_belt_teeth", "fixed_cartridge_housing")),
+        frozenset(("flexible_belt_teeth", "fixed_planar_belt_entry_guide")),
+    }
+    checked_pairs = {
+        frozenset((pair.first_label, pair.second_label))
+        for pair in report.checked_pairs
+    }
+    assert required_pairs <= checked_pairs
+
+    by_pair = {}
+    for pair in report.checked_pairs:
+        by_pair.setdefault(frozenset((pair.first_label, pair.second_label)), []).append(pair)
+    fork_guide = by_pair[
+        frozenset(("floating_z_drive_fork", "fixed_planar_belt_entry_guide"))
+    ]
+    backing_drum = by_pair[frozenset(("flexible_belt_backing", "reel_drum_41t"))]
+    teeth_drum = by_pair[frozenset(("flexible_belt_teeth", "reel_drum_41t"))]
+    assert max(pair.positive_volume for pair in fork_guide) < 1e-6
+    assert 0.0 < min(pair.positive_volume for pair in backing_drum)
+    assert max(pair.positive_volume for pair in backing_drum) < 0.13
+    assert 0.0 < min(pair.positive_volume for pair in teeth_drum)
+    assert max(pair.positive_volume for pair in teeth_drum) < 1.10
+    assert {
+        ("flexible_belt_backing", "reel_drum_41t"),
+        ("flexible_belt_teeth", "reel_drum_41t"),
+    } <= set(report.intended_contact_pairs)
+
+
 def test_four_fused_guides_follow_retained_carriage_datums():
     report = guide_alignment_report(POSES)
     assert report.guide_labels == tuple(
