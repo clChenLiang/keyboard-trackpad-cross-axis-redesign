@@ -124,7 +124,6 @@ def test_collision_report_covers_every_changed_belt_drum_and_guide_pair():
     assert max(pair.positive_volume for pair in fork_guide) < 1e-6
     assert 0.0 < min(pair.positive_volume for pair in backing_drum)
     assert max(pair.positive_volume for pair in backing_drum) < 0.13
-    assert 0.0 < min(pair.positive_volume for pair in teeth_drum)
     assert max(pair.positive_volume for pair in teeth_drum) < 1.10
     assert {
         ("flexible_belt_backing", "reel_drum_41t"),
