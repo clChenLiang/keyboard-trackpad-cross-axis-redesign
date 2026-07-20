@@ -42,6 +42,7 @@ CARTRIDGE_LABELS = {
     "independent_hard_stop_keyboard",
     "independent_hard_stop_trackpad",
     "shaft_rotating_stop_lug",
+    "removable_reel_axial_retainer",
 }
 CARTRIDGE_STACK_LABELS = CARTRIDGE_LABELS - {"reel_drum_41t"}
 BELT_SYSTEM_LABELS = {
@@ -55,7 +56,7 @@ BELT_SYSTEM_LABELS = {
 
 
 def test_cartridge_stack_entities_are_flat_unique_valid_positive_volume_parts():
-    cartridge = build_cartridge(0.5, include_belt=False)
+    cartridge = build_cartridge(0.5)
     labels = [child.label for child in cartridge.children]
 
     assert CARTRIDGE_STACK_LABELS == set(labels)
@@ -65,20 +66,13 @@ def test_cartridge_stack_entities_are_flat_unique_valid_positive_volume_parts():
         assert child.volume > 0.0, child.label
         if child.label in CARTRIDGE_STACK_LABELS:
             assert len(child.solids()) == 1, child.label
-
-
-def test_default_cartridge_is_the_unambiguous_stack_only_builder():
-    labels = {child.label for child in build_cartridge(0.5).children}
-
-    assert labels == CARTRIDGE_STACK_LABELS
-
-
 @pytest.mark.parametrize("travel", [0.0, 0.5, 1.0])
 def test_belt_plus_default_cartridge_composes_with_exactly_one_owner_per_label(travel):
     children = [*build_belt_system(travel).children, *build_cartridge(travel).children]
     labels = [child.label for child in children]
 
     assert len(labels) == len(set(labels))
+    assert len(labels) == 20
     for label in BELT_SYSTEM_LABELS:
         assert labels.count(label) == 1
 
@@ -114,7 +108,11 @@ def test_stack_report_is_immutable_and_measures_above_base_supports_and_housing(
     assert report.torque_rotation_witness_penetration_volume > 1e-3
     assert report.smooth_bore_rotation_witness_penetration_volume < 1e-6
     assert report.lower_reel_collar_distance <= 1e-6
-    assert report.upper_reel_collar_distance <= 1e-6
+    assert report.upper_reel_retainer_distance > 0.0
+    assert report.retainer_shaft_radial_clearance > 0.0
+    assert report.retainer_shaft_nominal_penetration_volume < 1e-6
+    assert report.retainer_lower_axial_witness_volume > 1e-3
+    assert report.retainer_upper_axial_witness_volume > 1e-3
     assert report.lower_axial_retention_witness_volume > 1e-3
     assert report.upper_axial_retention_witness_volume > 1e-3
 
@@ -138,11 +136,8 @@ def test_independent_hard_stops_contact_only_at_their_intended_end_pose(
 
 
 def test_rotating_lug_has_a_real_solid_load_path_into_the_labeled_shaft():
-    children = {
-        child.label: child for child in build_cartridge(0.5, include_belt=False).children
-    }
-    lug = children["shaft_rotating_stop_lug"]
-    shaft = children["vertical_output_shaft"]
+    lug = v4_reel_cartridge._shaft_rotating_stop_lug(0.5)
+    shaft = v4_reel_cartridge._vertical_output_shaft(0.5)
 
     assert len(lug.solids()) == 1
     assert lug.distance_to(shaft) <= 1e-6
@@ -150,13 +145,13 @@ def test_rotating_lug_has_a_real_solid_load_path_into_the_labeled_shaft():
 
 
 def test_fixed_stops_have_real_solid_mounting_load_paths_into_the_housing():
-    children = {
-        child.label: child for child in build_cartridge(0.5, include_belt=False).children
-    }
-    housing = children["fixed_cartridge_housing"]
+    housing = v4_reel_cartridge._fixed_cartridge_housing()
+    stops = (
+        v4_reel_cartridge._keyboard_hard_stop(),
+        v4_reel_cartridge._trackpad_hard_stop(),
+    )
 
-    for label in ("independent_hard_stop_keyboard", "independent_hard_stop_trackpad"):
-        stop = children[label]
+    for stop in stops:
         assert len(stop.solids()) == 1
         assert stop.distance_to(housing) <= 1e-6
         assert (stop & housing).volume > 1e-3
@@ -196,28 +191,31 @@ def test_output_shaft_has_named_top_datum_and_keyed_bidirectional_reel_retention
     assert (shaft & reel).volume < 1e-6
 
 
-def test_sectioned_cartridge_preserves_labels_and_exposes_a_valid_housing():
-    cartridge = build_cartridge(0.5, sectioned=True, include_belt=False)
-    children = {child.label: child for child in cartridge.children}
-    unsectioned = {
-        child.label: child
-        for child in build_cartridge(0.5, include_belt=False).children
-    }
+def test_removable_reel_retainer_is_one_valid_screwless_groove_seated_solid():
+    retainer = v4_reel_cartridge._removable_reel_axial_retainer()
+    shaft = v4_reel_cartridge._vertical_output_shaft(0.5)
 
-    assert CARTRIDGE_STACK_LABELS == children.keys()
-    assert children["fixed_cartridge_housing"].is_valid()
-    assert (
-        0.0
-        < children["fixed_cartridge_housing"].volume
-        < unsectioned["fixed_cartridge_housing"].volume
+    assert retainer.is_valid()
+    assert len(retainer.solids()) == 1
+    assert retainer.volume > 0.0
+    assert (retainer & shaft).volume < 1e-6
+
+
+def test_retainer_radial_service_endpoint_clears_the_shaft():
+    shaft = v4_reel_cartridge._vertical_output_shaft(0.5)
+    removed_retainer = v4_reel_cartridge._removable_reel_axial_retainer().moved(
+        Location((v4_reel_cartridge.RETAINER_REMOVAL_DX, 0.0, 0.0))
     )
 
+    assert removed_retainer.distance_to(shaft) > 0.0
 
-def test_section_exploded_entrypoint_reuses_the_labeled_cartridge_builder():
-    exploded = reel_cartridge_section_exploded.gen_step()
 
-    assert exploded.label.startswith("v4_reel_cartridge_section_exploded")
-    assert CARTRIDGE_LABELS <= {child.label for child in exploded.children}
+def test_sectioned_cartridge_preserves_labels_and_exposes_a_valid_housing():
+    sectioned_housing = v4_reel_cartridge._fixed_cartridge_housing(sectioned=True)
+    normal_housing = v4_reel_cartridge._fixed_cartridge_housing(sectioned=False)
+
+    assert sectioned_housing.is_valid()
+    assert 0.0 < sectioned_housing.volume < normal_housing.volume
 
 
 def test_exploded_view_has_exact_clear_offsets_and_preserves_coaxial_centers():
@@ -228,8 +226,9 @@ def test_exploded_view_has_exact_clear_offsets_and_preserves_coaxial_centers():
         "return_spring_inner_anchor": 5.0,
         "return_spring_outer_anchor": 5.0,
         "reel_drum_41t": v4_reel_cartridge.EXPLODED_REEL_DZ,
-        "upper_radial_bearing_seat": 18.0,
-        "removable_cartridge_top_cap": 26.0,
+        "upper_radial_bearing_seat": v4_reel_cartridge.EXPLODED_UPPER_SEAT_DZ,
+        "removable_cartridge_top_cap": v4_reel_cartridge.EXPLODED_TOP_CAP_DZ,
+        "removable_reel_axial_retainer": 0.0,
     }
     nominal_build = build_cartridge(0.5, sectioned=True, include_belt=True)
     nominal_centers = {
@@ -238,21 +237,27 @@ def test_exploded_view_has_exact_clear_offsets_and_preserves_coaxial_centers():
         if child.label in expected_dz
     }
     del nominal_build
-    exploded = {
-        child.label: child for child in reel_cartridge_section_exploded.gen_step().children
-    }
+    exploded_build = reel_cartridge_section_exploded.gen_step()
+    assert exploded_build.label.startswith("v4_reel_cartridge_section_exploded")
+    exploded = {child.label: child for child in exploded_build.children}
+    assert CARTRIDGE_LABELS <= exploded.keys()
 
     for label, dz in expected_dz.items():
         before = nominal_centers[label]
         after = exploded[label].bounding_box().center()
-        assert after.X == pytest.approx(before.X, abs=1e-6)
-        assert after.Y == pytest.approx(before.Y, abs=1e-6)
+        if label != "removable_reel_axial_retainer":
+            assert after.X == pytest.approx(before.X, abs=1e-6)
+            assert after.Y == pytest.approx(before.Y, abs=1e-6)
         assert after.Z - before.Z == pytest.approx(dz, abs=1e-6)
 
-    normal_housing = {
-        child.label: child
-        for child in build_cartridge(0.5, sectioned=False).children
-    }["fixed_cartridge_housing"]
+    retainer_before = nominal_centers["removable_reel_axial_retainer"]
+    retainer_after = exploded["removable_reel_axial_retainer"].bounding_box().center()
+    assert retainer_after.X - retainer_before.X == pytest.approx(
+        v4_reel_cartridge.EXPLODED_RETAINER_DX, abs=1e-6
+    )
+    assert retainer_after.Y == pytest.approx(retainer_before.Y, abs=1e-6)
+
+    normal_housing = v4_reel_cartridge._fixed_cartridge_housing(sectioned=False)
     assert exploded["fixed_cartridge_housing"].volume < normal_housing.volume
     reel = exploded["reel_drum_41t"]
     shaft = exploded["vertical_output_shaft"]
@@ -261,17 +266,13 @@ def test_exploded_view_has_exact_clear_offsets_and_preserves_coaxial_centers():
         v4_reel_cartridge.LOWER_REEL_COLLAR_Z0,
         v4_reel_cartridge.LOWER_REEL_COLLAR_HEIGHT,
     )
-    upper_collar = v4_reel_cartridge._actual_shaft_collar(
-        shaft,
-        v4_reel_cartridge.UPPER_REEL_COLLAR_Z0,
-        v4_reel_cartridge.UPPER_REEL_COLLAR_HEIGHT,
-    )
+    retainer = exploded["removable_reel_axial_retainer"]
 
-    assert reel.distance_to(shaft) <= 1e-6  # coaxial bore remains on the shaft datum
+    assert reel.distance_to(shaft) >= v4_reel_cartridge.EXPLODED_PART_CLEARANCE
     assert reel.distance_to(lower_collar) > 0.0
-    assert reel.distance_to(upper_collar) >= v4_reel_cartridge.EXPLODED_PART_CLEARANCE - 1e-6
+    assert reel.distance_to(retainer) > 0.0
     assert (
-        reel.bounding_box().min.Z - upper_collar.bounding_box().max.Z
+        reel.bounding_box().min.Z - shaft.bounding_box().max.Z
         >= v4_reel_cartridge.EXPLODED_PART_CLEARANCE - 1e-6
     )
 

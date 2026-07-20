@@ -101,16 +101,30 @@ KEYWAY_CLEARANCE = 0.10
 REEL_COLLAR_RADIUS = 5.0
 LOWER_REEL_COLLAR_Z0 = 28.2
 LOWER_REEL_COLLAR_HEIGHT = REEL_Z0 - LOWER_REEL_COLLAR_Z0
-UPPER_REEL_COLLAR_Z0 = REEL_Z1
-UPPER_REEL_COLLAR_HEIGHT = 0.8
+RETAINER_GROOVE_Z0 = 41.2
+RETAINER_GROOVE_HEIGHT = 0.8
+RETAINER_GROOVE_RADIUS = 2.6
+RETAINER_Z0 = 41.3
+RETAINER_HEIGHT = 0.6
+RETAINER_INNER_RADIUS = 2.65
+RETAINER_OUTER_RADIUS = 5.0
+RETAINER_OPENING_WIDTH = 5.4
+RETAINER_REMOVAL_DX = 10.0
+RETAINER_AXIAL_WITNESS_TRAVEL = 0.12
 EXPLODED_PART_CLEARANCE = 0.2
 REEL_COMPONENT_MIN_Z = REEL_Z0 - POCKET_FLOOR_THICKNESS
-EXPLODED_REEL_DZ = (
-    UPPER_REEL_COLLAR_Z0
-    + UPPER_REEL_COLLAR_HEIGHT
-    + EXPLODED_PART_CLEARANCE
-    - REEL_COMPONENT_MIN_Z
+EXPLODED_REEL_DZ = OUTPUT_SHAFT_TOP_Z + EXPLODED_PART_CLEARANCE - REEL_COMPONENT_MIN_Z
+EXPLODED_UPPER_SEAT_DZ = (
+    REEL_Z1 + EXPLODED_REEL_DZ + EXPLODED_PART_CLEARANCE - UPPER_RADIAL_Z0
 )
+EXPLODED_TOP_CAP_DZ = (
+    UPPER_RADIAL_Z0
+    + UPPER_RADIAL_HEIGHT
+    + EXPLODED_UPPER_SEAT_DZ
+    + EXPLODED_PART_CLEARANCE
+    - TOP_CAP_Z0
+)
+EXPLODED_RETAINER_DX = RETAINER_REMOVAL_DX
 TORQUE_WITNESS_ANGLE_DEG = 2.0
 AXIAL_RETENTION_WITNESS_TRAVEL = 0.02
 BEARING_BORE_RADIUS = 3.1
@@ -201,7 +215,11 @@ class CartridgeStackReport:
     torque_rotation_witness_penetration_volume: float
     smooth_bore_rotation_witness_penetration_volume: float
     lower_reel_collar_distance: float
-    upper_reel_collar_distance: float
+    upper_reel_retainer_distance: float
+    retainer_shaft_radial_clearance: float
+    retainer_shaft_nominal_penetration_volume: float
+    retainer_lower_axial_witness_volume: float
+    retainer_upper_axial_witness_volume: float
     lower_axial_retention_witness_volume: float
     upper_axial_retention_witness_volume: float
 
@@ -215,6 +233,18 @@ class StopContactReport:
     trackpad_distance: float
     keyboard_positive_penetration_volume: float
     trackpad_positive_penetration_volume: float
+
+
+@dataclass(frozen=True)
+class ReelServiceRemovalReport:
+    retainer_removal_direction: str
+    retainer_samples: int
+    max_retainer_shaft_penetration_volume: float
+    retainer_final_shaft_distance: float
+    reel_lift_direction: str
+    reel_samples: int
+    max_reel_shaft_penetration_volume: float
+    reel_final_shaft_distance: float
 
 
 def _box(size: Tuple[float, float, float], center: Tuple[float, float, float]) -> Shape:
@@ -903,16 +933,41 @@ def _vertical_output_shaft(travel: float = 0.5) -> Shape:
         LOWER_REEL_COLLAR_HEIGHT,
         align=(Align.CENTER, Align.CENTER, Align.MIN),
     ).moved(Location((0.0, 0.0, LOWER_REEL_COLLAR_Z0)))
-    upper_reel_collar = Cylinder(
-        REEL_COLLAR_RADIUS,
-        UPPER_REEL_COLLAR_HEIGHT,
-        align=(Align.CENTER, Align.CENTER, Align.MIN),
-    ).moved(Location((0.0, 0.0, UPPER_REEL_COLLAR_Z0)))
     key_rib = _shaft_key_rib(travel)
+    shaft_with_key = shaft + thrust_shoulder + lower_reel_collar + key_rib
+    groove_cut = _annular_cylinder(
+        OUTPUT_SHAFT_RADIUS + 0.5,
+        RETAINER_GROOVE_RADIUS,
+        RETAINER_GROOVE_HEIGHT,
+        RETAINER_GROOVE_Z0,
+    )
     return _label(
-        shaft + thrust_shoulder + lower_reel_collar + upper_reel_collar + key_rib,
+        shaft_with_key - groove_cut,
         "vertical_output_shaft",
     )
+
+
+def _removable_reel_axial_retainer() -> Shape:
+    """Build a screwless C-retainer with a shaft-width radial service mouth."""
+    ring = _annular_cylinder(
+        RETAINER_OUTER_RADIUS,
+        RETAINER_INNER_RADIUS,
+        RETAINER_HEIGHT,
+        RETAINER_Z0,
+    )
+    opening = _box(
+        (
+            2.0 * RETAINER_OUTER_RADIUS + 1.0,
+            RETAINER_OPENING_WIDTH,
+            RETAINER_HEIGHT + 2.0,
+        ),
+        (
+            -(2.0 * RETAINER_OUTER_RADIUS + 1.0) / 2.0,
+            0.0,
+            RETAINER_Z0 + RETAINER_HEIGHT / 2.0,
+        ),
+    )
+    return _label(ring - opening, "removable_reel_axial_retainer")
 
 
 def _return_spring() -> Shape:
@@ -1084,6 +1139,7 @@ def _stack_parts(
         parts.append(_reel_drum(travel))
     parts.extend(
         [
+            _removable_reel_axial_retainer(),
             _upper_radial_bearing_seat(),
             _vertical_output_shaft(travel),
             _fixed_cartridge_housing(sectioned),
@@ -1111,19 +1167,20 @@ def build_cartridge(
 def build_cartridge_exploded(travel: float = 0.5) -> Compound:
     """Explode the shared sectioned build while preserving its coaxial witness axis."""
     offsets = {
-        "lower_axial_thrust_interface": -8.0,
-        "lower_radial_bearing_seat": -4.0,
-        "above_base_return_spring": 5.0,
-        "return_spring_inner_anchor": 5.0,
-        "return_spring_outer_anchor": 5.0,
-        "reel_drum_41t": EXPLODED_REEL_DZ,
-        "upper_radial_bearing_seat": 18.0,
-        "removable_cartridge_top_cap": 26.0,
+        "lower_axial_thrust_interface": (0.0, 0.0, -8.0),
+        "lower_radial_bearing_seat": (0.0, 0.0, -4.0),
+        "above_base_return_spring": (0.0, 0.0, 5.0),
+        "return_spring_inner_anchor": (0.0, 0.0, 5.0),
+        "return_spring_outer_anchor": (0.0, 0.0, 5.0),
+        "removable_reel_axial_retainer": (EXPLODED_RETAINER_DX, 0.0, 0.0),
+        "reel_drum_41t": (0.0, 0.0, EXPLODED_REEL_DZ),
+        "upper_radial_bearing_seat": (0.0, 0.0, EXPLODED_UPPER_SEAT_DZ),
+        "removable_cartridge_top_cap": (0.0, 0.0, EXPLODED_TOP_CAP_DZ),
     }
     children = []
     for child in build_cartridge(travel, sectioned=True, include_belt=True).children:
-        dz = offsets.get(child.label, 0.0)
-        children.append(child.moved(Location((0.0, 0.0, dz))) if dz else child)
+        offset = offsets.get(child.label)
+        children.append(child.moved(Location(offset)) if offset else child)
     return _compound(f"v4_reel_cartridge_section_exploded_t{travel:.3f}", children)
 
 
@@ -1178,6 +1235,7 @@ def cartridge_stack_report(
     cap = parts["removable_cartridge_top_cap"]
     housing = parts["fixed_cartridge_housing"]
     reel = parts["reel_drum_41t"]
+    retainer = parts["removable_reel_axial_retainer"]
     wedge, _ = _reel_wedge_and_pockets(travel)
 
     lower_radial_clearance, lower_radial_axial_overlap = _actual_shaft_radial_support_facts(
@@ -1195,8 +1253,10 @@ def cartridge_stack_report(
     lower_reel_collar = _actual_shaft_collar(
         shaft, LOWER_REEL_COLLAR_Z0, LOWER_REEL_COLLAR_HEIGHT
     )
-    upper_reel_collar = _actual_shaft_collar(
-        shaft, UPPER_REEL_COLLAR_Z0, UPPER_REEL_COLLAR_HEIGHT
+    upper_reel_blocking_travel = (
+        retainer.bounding_box().min.Z
+        - reel.bounding_box().max.Z
+        + CONTACT_WITNESS_TRAVEL
     )
     torque_witness_reel = reel.rotate(Axis.Z, TORQUE_WITNESS_ANGLE_DEG)
     smooth_shaft = Cylinder(
@@ -1241,15 +1301,79 @@ def cartridge_stack_report(
             smooth_bore_reel & smooth_shaft
         ).volume,
         lower_reel_collar_distance=reel.distance_to(lower_reel_collar),
-        upper_reel_collar_distance=reel.distance_to(upper_reel_collar),
+        upper_reel_retainer_distance=reel.distance_to(retainer),
+        retainer_shaft_radial_clearance=retainer.distance_to(shaft),
+        retainer_shaft_nominal_penetration_volume=(retainer & shaft).volume,
+        retainer_lower_axial_witness_volume=(
+            retainer.moved(Location((0.0, 0.0, -RETAINER_AXIAL_WITNESS_TRAVEL)))
+            & shaft
+        ).volume,
+        retainer_upper_axial_witness_volume=(
+            retainer.moved(Location((0.0, 0.0, RETAINER_AXIAL_WITNESS_TRAVEL)))
+            & shaft
+        ).volume,
         lower_axial_retention_witness_volume=(
             reel.moved(Location((0.0, 0.0, -AXIAL_RETENTION_WITNESS_TRAVEL)))
             & lower_reel_collar
         ).volume,
         upper_axial_retention_witness_volume=(
-            reel.moved(Location((0.0, 0.0, AXIAL_RETENTION_WITNESS_TRAVEL)))
-            & upper_reel_collar
+            reel.moved(Location((0.0, 0.0, upper_reel_blocking_travel)))
+            & retainer
         ).volume,
+    )
+
+
+def reel_service_removal_report(
+    retainer_samples: int = 7, reel_samples: int = 9
+) -> ReelServiceRemovalReport:
+    """Audit screwless retainer extraction, then lift the reel off the actual shaft."""
+    if retainer_samples < 5 or reel_samples < 7:
+        raise ValueError("service removal requires at least 5 retainer and 7 reel samples")
+    travel = 0.5
+    shaft = _vertical_output_shaft(travel)
+    retainer = _removable_reel_axial_retainer()
+    max_retainer_penetration = 0.0
+    final_retainer = retainer
+    for index in range(retainer_samples):
+        dx = RETAINER_REMOVAL_DX * index / (retainer_samples - 1)
+        final_retainer = retainer.moved(Location((dx, 0.0, 0.0)))
+        max_retainer_penetration = max(
+            max_retainer_penetration,
+            (final_retainer & shaft).volume,
+        )
+
+    reel = _reel_drum(travel)
+    hub_tool = Cylinder(
+        REEL_COLLAR_RADIUS + 0.5,
+        BELT_WIDTH + 2.0,
+        align=(Align.CENTER, Align.CENTER, Align.MIN),
+    ).moved(Location((0.0, 0.0, REEL_Z0 - 1.0)))
+    actual_reel_hub = reel & hub_tool
+    shaft_path_tool = Cylinder(
+        REEL_COLLAR_RADIUS + 0.5,
+        OUTPUT_SHAFT_TOP_Z - LOWER_REEL_COLLAR_Z0 + 1.0,
+        align=(Align.CENTER, Align.CENTER, Align.MIN),
+    ).moved(Location((0.0, 0.0, LOWER_REEL_COLLAR_Z0 - 0.5)))
+    actual_shaft_path = shaft & shaft_path_tool
+    max_reel_penetration = 0.0
+    final_reel_hub = actual_reel_hub
+    for index in range(reel_samples):
+        dz = EXPLODED_REEL_DZ * index / (reel_samples - 1)
+        final_reel_hub = actual_reel_hub.moved(Location((0.0, 0.0, dz)))
+        max_reel_penetration = max(
+            max_reel_penetration,
+            (final_reel_hub & actual_shaft_path).volume,
+        )
+
+    return ReelServiceRemovalReport(
+        retainer_removal_direction="+X",
+        retainer_samples=retainer_samples,
+        max_retainer_shaft_penetration_volume=max_retainer_penetration,
+        retainer_final_shaft_distance=final_retainer.distance_to(shaft),
+        reel_lift_direction="+Z",
+        reel_samples=reel_samples,
+        max_reel_shaft_penetration_volume=max_reel_penetration,
+        reel_final_shaft_distance=final_reel_hub.distance_to(actual_shaft_path),
     )
 
 
