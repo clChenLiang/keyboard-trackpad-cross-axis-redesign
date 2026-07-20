@@ -6,12 +6,19 @@ The reel axis is +Z and the straight run stays centred at ``BELT_Z``.
 """
 
 from dataclasses import dataclass
-from math import ceil, cos, degrees, floor, pi, sin
+from math import atan2, ceil, cos, degrees, floor, pi, sin
 from typing import List, Sequence, Tuple
 
 from build123d import Align, Axis, Box, Compound, Cylinder, Location, Shape
 
-from v4_kinematics import BELT_PITCH, BELT_Z, REEL_PITCH_RADIUS, REEL_TEETH, pose_state
+from v4_kinematics import (
+    BELT_PITCH,
+    BELT_Z,
+    INITIAL_WRAP_TEETH,
+    REEL_PITCH_RADIUS,
+    REEL_TEETH,
+    pose_state,
+)
 
 
 BELT_WIDTH = 12.0
@@ -19,9 +26,6 @@ BACKING_THICKNESS = 1.2
 TOOTH_DEPTH = 0.9
 TOOTH_TANGENTIAL_LENGTH = 0.80
 
-# A purchased open belt has 11 teeth on the reel at the zero pose.  Five are
-# retained by the removable wedge, leaving six working grooves engaged.
-INITIAL_WRAP_TEETH = 11
 WEDGE_CAPTURE_TEETH = 5
 BACKING_INNER_RADIUS = REEL_PITCH_RADIUS + 0.30
 DRUM_OUTER_RADIUS = REEL_PITCH_RADIUS - 0.25
@@ -46,6 +50,20 @@ class BeltRetentionReport:
     slider_wedge_at_datum: bool
     reel_working_direction_blocked: bool
     slider_working_direction_blocked: bool
+
+
+@dataclass(frozen=True)
+class BeltPathReport:
+    centerline_length: float
+    backing_entry_gap: float
+
+
+@dataclass(frozen=True)
+class SliderWedgeInsertionReport:
+    insertion_direction: str
+    samples: int
+    max_positive_collision_volume: float
+    final_at_datum: bool
 
 
 def _box(size: Tuple[float, float, float], center: Tuple[float, float, float]) -> Shape:
@@ -81,15 +99,28 @@ def _phase(travel: float) -> float:
     return pose_state(travel).reel_angle_rad
 
 
+def _clockwise_from_entry(angle: float) -> float:
+    return (pi - angle) % (2.0 * pi)
+
+
+def _wrap_angle(travel: float) -> float:
+    return (INITIAL_WRAP_TEETH * BELT_PITCH + pose_state(travel).belt_feed) / REEL_PITCH_RADIUS
+
+
 def _wrapped_tooth_count(travel: float) -> int:
-    wrap_length = INITIAL_WRAP_TEETH * BELT_PITCH + pose_state(travel).belt_feed
-    return floor(wrap_length / BELT_PITCH + 1e-9)
+    return len(_arc_tooth_angles(travel))
 
 
 def _arc_tooth_angles(travel: float) -> List[float]:
-    pitch_angle = BELT_PITCH / REEL_PITCH_RADIUS
-    phase = _phase(travel)
-    return [pi - phase - (index + 0.5) * pitch_angle for index in range(_wrapped_tooth_count(travel))]
+    # The belt entry is fixed in world space. Select the rotating reel grooves
+    # that physically lie inside the current entry-to-wrap angular window.
+    wrap_angle = _wrap_angle(travel)
+    angles = [
+        angle
+        for angle in _all_groove_angles(travel)
+        if CONTACT_TOLERANCE < _clockwise_from_entry(angle) < wrap_angle - CONTACT_TOLERANCE
+    ]
+    return sorted(angles, key=_clockwise_from_entry)
 
 
 def _arc_tooth(angle: float, clearance: float = 0.0) -> Shape:
@@ -114,10 +145,14 @@ def _groove(angle: float) -> Shape:
     )
 
 
-def _all_grooves(travel: float) -> List[Shape]:
+def _all_groove_angles(travel: float) -> List[float]:
     pitch_angle = BELT_PITCH / REEL_PITCH_RADIUS
     phase = _phase(travel)
-    return [_groove(pi - phase - (index + 0.5) * pitch_angle) for index in range(REEL_TEETH)]
+    return [pi - phase - (index + 0.5) * pitch_angle for index in range(REEL_TEETH)]
+
+
+def _all_grooves(travel: float) -> List[Shape]:
+    return [_groove(angle) for angle in _all_groove_angles(travel)]
 
 
 def _reel_capture_angles(travel: float) -> List[float]:
@@ -167,7 +202,7 @@ def _reel_pocket_support(travel: float) -> Tuple[Shape, Shape]:
         BELT_Z - BELT_WIDTH / 2.0 - 0.4,
     )
     # A tangential shoulder at the loaded end makes belt tension self-tightening.
-    stop_angle = angles[-1]
+    stop_angle = angles[0]
     stop_thickness = 0.18
     wedge_cell_length = BELT_PITCH + 0.18
     tangent_offset = (wedge_cell_length + stop_thickness) / 2.0
@@ -177,8 +212,8 @@ def _reel_pocket_support(travel: float) -> Tuple[Shape, Shape]:
     stop = stop.moved(
         Location(
             (
-                radius * cos(stop_angle) + tangent_offset * sin(stop_angle),
-                radius * sin(stop_angle) - tangent_offset * cos(stop_angle),
+                radius * cos(stop_angle) - tangent_offset * sin(stop_angle),
+                radius * sin(stop_angle) + tangent_offset * cos(stop_angle),
                 0.0,
             )
         )
@@ -203,15 +238,14 @@ def _reel_drum(travel: float) -> Shape:
 
 
 def _arc_backing(travel: float) -> List[Shape]:
-    wrap_angle = (INITIAL_WRAP_TEETH * BELT_PITCH + pose_state(travel).belt_feed) / REEL_PITCH_RADIUS
+    wrap_angle = _wrap_angle(travel)
     count = max(1, ceil(degrees(wrap_angle) / ARC_CHORD_STEP_DEG))
     delta = wrap_angle / count
     radius = BACKING_INNER_RADIUS + BACKING_THICKNESS / 2.0
-    phase = _phase(travel)
     return [
         _polar_box(
             radius,
-            pi - phase - (index + 0.5) * delta,
+            pi - (index + 0.5) * delta,
             BACKING_THICKNESS,
             radius * delta * 1.02,
         )
@@ -249,13 +283,28 @@ def _slider_wedge_and_pockets(travel: float) -> Tuple[Shape, List[Shape]]:
     centers = [tooth.bounding_box().center() for tooth in teeth]
     y_center = sum(center.Y for center in centers) / len(centers)
     y_span = max(center.Y for center in centers) - min(center.Y for center in centers) + BELT_PITCH
-    wedge = _box((1.65, y_span, BELT_WIDTH), (-(BACKING_INNER_RADIUS - 0.62), y_center, BELT_Z))
+    # The wedge approaches from +X. Tooth slots break through its leading -X
+    # face but stop before the +X back wall; integral Z rails remain above and
+    # below the full-width belt teeth.
+    wedge_x_min = -BACKING_INNER_RADIUS
+    wedge_x_size = 1.70
+    wedge = _box(
+        (wedge_x_size, y_span, BELT_WIDTH + 2.0),
+        (wedge_x_min + wedge_x_size / 2.0, y_center, BELT_Z),
+    )
     pockets = []
     for tooth in teeth:
-        center = tooth.bounding_box().center()
+        tooth_box = tooth.bounding_box()
+        center = tooth_box.center()
+        pocket_x_min = wedge_x_min - 0.10
+        pocket_x_max = tooth_box.max.X + POCKET_CLEARANCE
         pocket = _box(
-            (TOOTH_DEPTH + 2 * POCKET_CLEARANCE, TOOTH_TANGENTIAL_LENGTH + 2 * POCKET_CLEARANCE, BELT_WIDTH + 0.4),
-            (center.X, center.Y, center.Z),
+            (
+                pocket_x_max - pocket_x_min,
+                TOOTH_TANGENTIAL_LENGTH + 2 * POCKET_CLEARANCE,
+                BELT_WIDTH + 2 * POCKET_CLEARANCE,
+            ),
+            ((pocket_x_min + pocket_x_max) / 2.0, center.Y, center.Z),
         )
         pockets.append(pocket)
         wedge = wedge - pocket
@@ -267,17 +316,26 @@ def _slider_support(travel: float) -> Tuple[Shape, Shape, Shape]:
     y_values = [tooth.bounding_box().center().Y for tooth in teeth]
     y_center = sum(y_values) / len(y_values)
     y_span = max(y_values) - min(y_values) + BELT_PITCH
-    # U-shaped captured slot: an X seating wall, two Z rails, and a load-end wall.
-    wedge_x_center = -(BACKING_INNER_RADIUS - 0.62)
-    wedge_x_max = wedge_x_center + 1.65 / 2.0
+    # Open +X approach corridor, left seating wall, upper/lower Z capture rails,
+    # and a -Y load wall. No solid closes the transverse insertion path.
+    wedge_x_min = -BACKING_INNER_RADIUS
+    wedge_x_max = wedge_x_min + 1.70
     datum_wall = _box(
         (0.8, y_span + 3.0, BELT_WIDTH + 4.0),
-        (wedge_x_max + 0.4, y_center, BELT_Z),
+        (wedge_x_min - 0.4, y_center, BELT_Z),
     )
-    lower_rail = _box((4.6, y_span + 3.0, 1.0), (-13.825, y_center, BELT_Z - BELT_WIDTH / 2.0 - 0.5))
-    upper_rail = _box((4.6, y_span + 3.0, 1.0), (-13.825, y_center, BELT_Z + BELT_WIDTH / 2.0 + 0.5))
-    load_stop_y = y_center - y_span / 2.0 - 0.2
-    load_stop = _box((4.6, 0.4, BELT_WIDTH + 2.0), (-13.825, load_stop_y, BELT_Z))
+    corridor_x_center = (wedge_x_min - 0.8 + wedge_x_max + 3.0) / 2.0
+    corridor_x_size = wedge_x_max + 3.0 - (wedge_x_min - 0.8)
+    lower_rail = _box(
+        (corridor_x_size, y_span + 3.0, 1.0),
+        (corridor_x_center, y_center, BELT_Z - BELT_WIDTH / 2.0 - 1.5),
+    )
+    upper_rail = _box(
+        (corridor_x_size, y_span + 3.0, 1.0),
+        (corridor_x_center, y_center, BELT_Z + BELT_WIDTH / 2.0 + 1.5),
+    )
+    load_stop_y = y_center + y_span / 2.0 + 0.2
+    load_stop = _box((corridor_x_size, 0.4, BELT_WIDTH + 2.0), (corridor_x_center, load_stop_y, BELT_Z))
     slider = datum_wall + lower_rail + upper_rail + load_stop
     return _label(slider, "screwless_belt_end_slider"), datum_wall, load_stop
 
@@ -324,12 +382,106 @@ def reel_engagement_report(travel: float) -> ReelEngagementReport:
     return ReelEngagementReport(engaged, len(occupied), penetration)
 
 
-def _occupied_pocket_count(teeth: Sequence[Shape], pockets: Sequence[Shape]) -> int:
-    occupied = 0
+def belt_path_report(travel: float) -> BeltPathReport:
+    """Measure fixed-entry continuity and pitch-line length from posed BREP."""
+    straight = _straight_backing(travel)
+    arc = _arc_backing(travel)
+    centers = [segment.bounding_box().center() for segment in arc]
+    distances = sorted(_clockwise_from_entry(atan2(c.Y, c.X)) for c in centers)
+    segment_angle = distances[1] - distances[0] if len(distances) > 1 else _wrap_angle(travel)
+    measured_wrap_angle = distances[-1] - distances[0] + segment_angle
+    straight_length = straight.bounding_box().max.Y - straight.bounding_box().min.Y
+    return BeltPathReport(
+        centerline_length=straight_length + REEL_PITCH_RADIUS * measured_wrap_angle,
+        backing_entry_gap=straight.distance_to(arc[0]),
+    )
+
+
+def _reel_load_probes(angles: Sequence[float]) -> List[Shape]:
+    probes = []
+    probe_length = 0.20
+    radial_center = BACKING_INNER_RADIUS - TOOTH_DEPTH / 2.0
+    tangent_offset = TOOTH_TANGENTIAL_LENGTH / 2.0 + POCKET_CLEARANCE + probe_length / 2.0
+    for angle in angles:
+        probe = _box((TOOTH_DEPTH * 0.8, probe_length, BELT_WIDTH * 0.8), (0.0, 0.0, BELT_Z))
+        probe = probe.rotate(Axis.Z, degrees(angle))
+        probe = probe.moved(
+            Location(
+                (
+                    radial_center * cos(angle) - tangent_offset * sin(angle),
+                    radial_center * sin(angle) + tangent_offset * cos(angle),
+                    0.0,
+                )
+            )
+        )
+        probes.append(probe)
+    return probes
+
+
+def _slider_load_probes(teeth: Sequence[Shape]) -> List[Shape]:
+    probes = []
+    probe_length = 0.20
     for tooth in teeth:
-        if max((tooth & pocket).volume for pocket in pockets) >= tooth.volume * 0.95:
-            occupied += 1
-    return occupied
+        bounds = tooth.bounding_box()
+        probes.append(
+            _box(
+                (TOOTH_DEPTH * 0.8, probe_length, BELT_WIDTH * 0.8),
+                (
+                    bounds.center().X,
+                    bounds.max.Y + POCKET_CLEARANCE + probe_length / 2.0,
+                    BELT_Z,
+                ),
+            )
+        )
+    return probes
+
+
+def _captured_tooth_count(
+    teeth: Sequence[Shape],
+    pockets: Sequence[Shape],
+    wedge: Shape,
+    load_probes: Sequence[Shape],
+) -> int:
+    """Count only occupied, collision-free cavities with real load-side lands."""
+    captured = 0
+    for tooth, pocket, probe in zip(teeth, pockets, load_probes):
+        occupies_cut_cavity = (tooth & pocket).volume >= tooth.volume * 0.95
+        no_wedge_penetration = (tooth & wedge).volume <= CONTACT_TOLERANCE
+        load_land_volume = (probe & wedge).volume
+        has_load_side_material = load_land_volume >= probe.volume * 0.60
+        if occupies_cut_cavity and no_wedge_penetration and has_load_side_material:
+            captured += 1
+    return captured
+
+
+def slider_wedge_insertion_report(samples: int = 7) -> SliderWedgeInsertionReport:
+    """Sample the explicit +X to -X transverse service insertion."""
+    if samples < 6:
+        raise ValueError("at least six insertion samples are required")
+    travel = 0.5
+    wedge, _ = _slider_wedge_and_pockets(travel)
+    teeth = _compound("slider_capture_teeth_check", _slider_capture_teeth(travel))
+    backing = _straight_backing(travel)
+    support, datum, _ = _slider_support(travel)
+    approach_offset = 3.0
+    max_collision = 0.0
+    for index in range(samples):
+        offset = approach_offset * (samples - 1 - index) / (samples - 1)
+        posed_wedge = wedge.moved(Location((offset, 0.0, 0.0)))
+        collision = (
+            (posed_wedge & teeth).volume
+            + (posed_wedge & backing).volume
+            + (posed_wedge & support).volume
+        )
+        max_collision = max(max_collision, collision)
+    wedge_box = wedge.bounding_box()
+    datum_box = datum.bounding_box()
+    return SliderWedgeInsertionReport(
+        insertion_direction="+X toward -X",
+        samples=samples,
+        max_positive_collision_volume=max_collision,
+        final_at_datum=abs(wedge_box.min.X - datum_box.max.X) <= CONTACT_TOLERANCE,
+    )
 
 
 def belt_retention_report() -> BeltRetentionReport:
@@ -347,10 +499,20 @@ def belt_retention_report() -> BeltRetentionReport:
     slider_box = slider_wedge.bounding_box()
     datum_box = slider_datum.bounding_box()
     return BeltRetentionReport(
-        reel_wedge_captured_teeth=_occupied_pocket_count(reel_teeth, reel_pockets),
-        slider_wedge_captured_teeth=_occupied_pocket_count(slider_teeth, slider_pockets),
+        reel_wedge_captured_teeth=_captured_tooth_count(
+            reel_teeth,
+            reel_pockets,
+            reel_wedge,
+            _reel_load_probes(_reel_capture_angles(travel)),
+        ),
+        slider_wedge_captured_teeth=_captured_tooth_count(
+            slider_teeth,
+            slider_pockets,
+            slider_wedge,
+            _slider_load_probes(slider_teeth),
+        ),
         reel_wedge_at_datum=abs(reel_box.min.Z - floor_box.max.Z) <= CONTACT_TOLERANCE,
-        slider_wedge_at_datum=abs(slider_box.max.X - datum_box.min.X) <= CONTACT_TOLERANCE,
+        slider_wedge_at_datum=abs(slider_box.min.X - datum_box.max.X) <= CONTACT_TOLERANCE,
         reel_working_direction_blocked=(
             reel_wedge.distance_to(reel_stop) <= CONTACT_TOLERANCE
             and (reel_wedge & reel_stop).volume <= CONTACT_TOLERANCE
