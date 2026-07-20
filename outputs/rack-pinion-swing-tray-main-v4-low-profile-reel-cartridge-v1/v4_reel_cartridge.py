@@ -103,6 +103,14 @@ LOWER_REEL_COLLAR_Z0 = 28.2
 LOWER_REEL_COLLAR_HEIGHT = REEL_Z0 - LOWER_REEL_COLLAR_Z0
 UPPER_REEL_COLLAR_Z0 = REEL_Z1
 UPPER_REEL_COLLAR_HEIGHT = 0.8
+EXPLODED_PART_CLEARANCE = 0.2
+REEL_COMPONENT_MIN_Z = REEL_Z0 - POCKET_FLOOR_THICKNESS
+EXPLODED_REEL_DZ = (
+    UPPER_REEL_COLLAR_Z0
+    + UPPER_REEL_COLLAR_HEIGHT
+    + EXPLODED_PART_CLEARANCE
+    - REEL_COMPONENT_MIN_Z
+)
 TORQUE_WITNESS_ANGLE_DEG = 2.0
 AXIAL_RETENTION_WITNESS_TRAVEL = 0.02
 BEARING_BORE_RADIUS = 3.1
@@ -1108,7 +1116,7 @@ def build_cartridge_exploded(travel: float = 0.5) -> Compound:
         "above_base_return_spring": 5.0,
         "return_spring_inner_anchor": 5.0,
         "return_spring_outer_anchor": 5.0,
-        "reel_drum_41t": 10.0,
+        "reel_drum_41t": EXPLODED_REEL_DZ,
         "upper_radial_bearing_seat": 18.0,
         "removable_cartridge_top_cap": 26.0,
     }

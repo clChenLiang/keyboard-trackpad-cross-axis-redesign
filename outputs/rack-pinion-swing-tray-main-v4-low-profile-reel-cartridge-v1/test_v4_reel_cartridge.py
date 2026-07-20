@@ -220,14 +220,14 @@ def test_section_exploded_entrypoint_reuses_the_labeled_cartridge_builder():
     assert CARTRIDGE_LABELS <= {child.label for child in exploded.children}
 
 
-def test_exploded_view_has_exact_mapped_offsets_and_preserves_coaxial_centers():
+def test_exploded_view_has_exact_clear_offsets_and_preserves_coaxial_centers():
     expected_dz = {
         "lower_axial_thrust_interface": -8.0,
         "lower_radial_bearing_seat": -4.0,
         "above_base_return_spring": 5.0,
         "return_spring_inner_anchor": 5.0,
         "return_spring_outer_anchor": 5.0,
-        "reel_drum_41t": 10.0,
+        "reel_drum_41t": v4_reel_cartridge.EXPLODED_REEL_DZ,
         "upper_radial_bearing_seat": 18.0,
         "removable_cartridge_top_cap": 26.0,
     }
@@ -254,6 +254,26 @@ def test_exploded_view_has_exact_mapped_offsets_and_preserves_coaxial_centers():
         for child in build_cartridge(0.5, sectioned=False).children
     }["fixed_cartridge_housing"]
     assert exploded["fixed_cartridge_housing"].volume < normal_housing.volume
+    reel = exploded["reel_drum_41t"]
+    shaft = exploded["vertical_output_shaft"]
+    lower_collar = v4_reel_cartridge._actual_shaft_collar(
+        shaft,
+        v4_reel_cartridge.LOWER_REEL_COLLAR_Z0,
+        v4_reel_cartridge.LOWER_REEL_COLLAR_HEIGHT,
+    )
+    upper_collar = v4_reel_cartridge._actual_shaft_collar(
+        shaft,
+        v4_reel_cartridge.UPPER_REEL_COLLAR_Z0,
+        v4_reel_cartridge.UPPER_REEL_COLLAR_HEIGHT,
+    )
+
+    assert reel.distance_to(shaft) <= 1e-6  # coaxial bore remains on the shaft datum
+    assert reel.distance_to(lower_collar) > 0.0
+    assert reel.distance_to(upper_collar) >= v4_reel_cartridge.EXPLODED_PART_CLEARANCE - 1e-6
+    assert (
+        reel.bounding_box().min.Z - upper_collar.bounding_box().max.Z
+        >= v4_reel_cartridge.EXPLODED_PART_CLEARANCE - 1e-6
+    )
 
 
 @pytest.mark.parametrize("travel", [0.0, 0.5, 1.0])
