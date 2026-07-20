@@ -794,17 +794,24 @@ def slider_wedge_insertion_report(
     )
 
 
-def belt_end_slider_datum_report(travel: float) -> BeltEndSliderDatumReport:
-    """Expose the actual free-end slider datum for downstream fork placement."""
+def belt_end_slider_datum_report(
+    travel: float, wedge_override: Optional[Shape] = None
+) -> BeltEndSliderDatumReport:
+    """Expose the actual free-end slider datum for downstream fork placement.
+
+    This performs several BREP intersections; downstream composition should
+    compute it once per pose and reuse the immutable scalar result.
+    """
     state = pose_state(travel)
-    captured_teeth = _slider_capture_teeth(travel)
-    wedge, _ = _slider_wedge_and_pockets(travel)
+    teeth = _slider_capture_teeth(travel)
+    nominal_wedge, pockets = _slider_wedge_and_pockets(travel)
+    wedge = nominal_wedge if wedge_override is None else wedge_override
     slider, _, _ = _slider_support(travel)
     straight_backing = _straight_backing(travel)
 
     slider_center = slider.bounding_box().center()
     wedge_center = wedge.bounding_box().center()
-    first_tooth_center_y = captured_teeth[0].bounding_box().center().Y
+    first_tooth_center_y = teeth[0].bounding_box().center().Y
     free_endpoint_y = straight_backing.bounding_box().min.Y
     captured_zone_min_y = wedge.bounding_box().min.Y
     return BeltEndSliderDatumReport(
@@ -816,7 +823,9 @@ def belt_end_slider_datum_report(travel: float) -> BeltEndSliderDatumReport:
         wedge_center_x=wedge_center.X,
         wedge_center_y=wedge_center.Y,
         wedge_center_z=wedge_center.Z,
-        captured_teeth=len(captured_teeth),
+        captured_teeth=_captured_tooth_count(
+            teeth, pockets, wedge, _slider_load_probes(teeth)
+        ),
         free_endpoint_y=free_endpoint_y,
         first_tooth_center_margin=first_tooth_center_y - free_endpoint_y,
         unclamped_tail_length=max(0.0, captured_zone_min_y - free_endpoint_y),

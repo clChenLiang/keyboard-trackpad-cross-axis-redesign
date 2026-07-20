@@ -347,6 +347,18 @@ def test_slider_clamps_the_free_belt_end_and_tracks_full_feed(travel, expected_f
     )
 
 
+def test_slider_datum_report_capture_count_is_sensitive_to_actual_wedge_brep():
+    travel = 0.5
+    nominal_wedge, _ = v4_reel_cartridge._slider_wedge_and_pockets(travel)
+    displaced_wedge = nominal_wedge.moved(Location((0.0, 3.0, 0.0)))
+
+    nominal = belt_end_slider_datum_report(travel)
+    displaced = belt_end_slider_datum_report(travel, wedge_override=displaced_wedge)
+
+    assert nominal.captured_teeth == 5
+    assert displaced.captured_teeth < 5
+
+
 @pytest.mark.parametrize("travel", [0.0, 0.5, 1.0])
 def test_slider_transverse_insertion_remains_clear_at_the_moving_free_end(travel):
     report = slider_wedge_insertion_report(samples=9, travel=travel)
