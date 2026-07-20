@@ -1,0 +1,131 @@
+"""Focused integration contract for the complete three-pose V4 mechanism."""
+
+from dataclasses import FrozenInstanceError
+from importlib import import_module
+
+import pytest
+
+from v4_assembly import (
+    CARTRIDGE_CENTER,
+    INTENDED_CONTACT_ALLOWLIST,
+    REMOVED_LABELS,
+    REQUIRED_LABELS,
+    build_pose,
+    drive_interface_report,
+    guide_alignment_report,
+    interference_report,
+)
+
+
+POSES = (0.0, 0.5, 1.0)
+
+
+def _parts(pose):
+    return {child.label: child for child in pose.children}
+
+
+@pytest.mark.parametrize("travel", POSES)
+def test_pose_has_exact_unique_required_labels_and_no_removed_parts(travel):
+    assembly = build_pose(travel)
+    labels = [child.label for child in assembly.children]
+    assert assembly.label == f"v4_keyboard_trackpad_pose_t{travel:.3f}"
+    assert len(labels) == len(set(labels))
+    assert REQUIRED_LABELS <= set(labels)
+    assert REMOVED_LABELS.isdisjoint(labels)
+    assert not any("back_pressure_" in label for label in labels)
+    assert not any("rack_retention" in label for label in labels)
+
+
+def test_base_and_cartridge_share_world_datums_without_penetration():
+    parts = _parts(build_pose(0.5))
+    base = parts["rounded_low_profile_base"]
+    housing = parts["fixed_cartridge_housing"]
+    shaft = parts["vertical_output_shaft"]
+    assert base.bounding_box().size.X == pytest.approx(310.0, abs=0.1)
+    assert base.bounding_box().size.Y == pytest.approx(225.0, abs=0.1)
+    assert base.bounding_box().max.Z == pytest.approx(7.0)
+    assert base.bounding_box().min.Z == pytest.approx(1.0)
+    assert shaft.bounding_box().center().X == pytest.approx(CARTRIDGE_CENTER[0], abs=0.02)
+    assert shaft.bounding_box().center().Y == pytest.approx(CARTRIDGE_CENTER[1], abs=0.02)
+    assert housing.distance_to(base) == pytest.approx(0.0, abs=1e-6)
+    assert (housing & base).volume < 1e-6
+
+
+def test_trackpad_finishes_right_aligned_without_keyboard_z_overlap():
+    final = _parts(build_pose(1.0))
+    keyboard = final["keyboard_tray_continuous"].bounding_box()
+    trackpad = final["magic_trackpad_small_tray"].bounding_box()
+    assert keyboard.size.X == pytest.approx(279.7, abs=0.1)
+    assert keyboard.size.Y == pytest.approx(115.7, abs=0.1)
+    assert trackpad.size.X == pytest.approx(160.8, abs=0.1)
+    assert trackpad.size.Y == pytest.approx(115.7, abs=0.1)
+    assert trackpad.max.X == pytest.approx(139.85, abs=0.1)
+    assert keyboard.max.X == pytest.approx(139.85, abs=0.1)
+    for travel in POSES:
+        parts = _parts(build_pose(travel))
+        assert parts["keyboard_tray_continuous"].bounding_box().max.Z < (
+            parts["magic_trackpad_small_tray"].bounding_box().min.Z
+        )
+
+
+def test_real_floating_z_interface_carries_y_and_accommodates_full_stroke():
+    reports = tuple(drive_interface_report(travel) for travel in POSES)
+    assert reports[-1].slider_dy == pytest.approx(20.5)
+    assert reports[-1].tongue_dy == pytest.approx(20.42)
+    assert reports[-1].tongue_dz == pytest.approx(-15.0)
+    assert reports[-1].slider_dz == pytest.approx(0.0)
+    assert min(report.z_capture_overlap for report in reports) >= 5.9
+    assert max(report.nominal_positive_penetration_volume for report in reports) < 1e-6
+    assert all(report.positive_y_contact_proven for report in reports)
+    assert all(report.negative_y_contact_proven for report in reports)
+    assert max(report.y_contact_travel_positive for report in reports) <= 0.19
+    assert max(report.y_contact_travel_negative for report in reports) <= 0.19
+    with pytest.raises(FrozenInstanceError):
+        reports[0].z_capture_overlap = 0.0
+
+
+def test_changed_interface_collision_report_has_only_named_clean_pairs():
+    report = interference_report(POSES)
+    assert report.poses == POSES
+    assert report.checked_pairs
+    assert report.unintended_positive_volume_pairs == ()
+    assert report.intended_contact_pairs
+    assert set(report.intended_contact_pairs) <= INTENDED_CONTACT_ALLOWLIST
+    assert all(pair.first_label != pair.second_label for pair in report.checked_pairs)
+    with pytest.raises(FrozenInstanceError):
+        report.poses = ()
+
+
+def test_four_fused_guides_follow_retained_carriage_datums():
+    report = guide_alignment_report(POSES)
+    assert report.guide_labels == tuple(
+        f"removable_keyboard_guide_{position}"
+        for position in ("left_front", "right_front", "left_rear", "right_rear")
+    )
+    assert report.all_guides_one_valid_solid
+    assert report.all_carriages_captured
+    assert max(report.carriage_guide_penetration_volumes) < 0.05
+    for travel in POSES:
+        labels = [child.label for child in build_pose(travel).children]
+        assert not any(label.startswith("fixed_keyboard_guide_") for label in labels)
+
+
+@pytest.mark.parametrize("travel", POSES)
+def test_every_selectable_top_level_child_is_valid_and_positive(travel):
+    for child in build_pose(travel).children:
+        assert child.is_valid(), child.label
+        assert child.volume > 0.0, child.label
+
+
+@pytest.mark.parametrize(
+    ("module_name", "travel"),
+    (("keyboard_mode", 0.0), ("mid_mode", 0.5), ("trackpad_mode", 1.0)),
+)
+def test_entry_scripts_only_delegate_to_shared_pose_builder(module_name, travel):
+    module = import_module(module_name)
+    assert set(name for name in vars(module) if not name.startswith("__")) == {
+        "Compound",
+        "build_pose",
+        "gen_step",
+    }
+    assert module.gen_step().label == f"v4_keyboard_trackpad_pose_t{travel:.3f}"
