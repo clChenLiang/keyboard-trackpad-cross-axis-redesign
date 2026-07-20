@@ -9,6 +9,7 @@ from v4_screwless_base import (
     BASE_TOP_Z,
     BASE_WIDTH,
     CARTRIDGE_CENTER,
+    DETAIL_DISENGAGEMENT_CLEARANCE,
     MAIN_OPENING_RADIUS,
     OUTER_CORNER_RADIUS,
     POSITIONS,
@@ -87,8 +88,19 @@ def test_required_receiver_and_support_labels_are_unique():
     supports = build_supports(installed=True)
     labels = [part.label for part in (*base.children, *supports.children)]
     assert len(labels) == len(set(labels))
+    required_receivers = {
+        "female_slide_receiver_front_left",
+        "female_slide_receiver_front_right",
+        "female_slide_receiver_rear_left",
+        "female_slide_receiver_rear_right",
+    }
+    assert required_receivers <= set(labels)
+    assert not any(
+        label.startswith("female_slide_receiver_left_")
+        or label.startswith("female_slide_receiver_right_")
+        for label in labels
+    )
     for position in POSITIONS:
-        assert f"female_slide_receiver_{position}" in labels
         assert f"removable_guide_support_{position}" in labels
         support = _parts(supports)[f"removable_guide_support_{position}"]
         assert support.is_valid and len(support.solids()) == 1
@@ -103,6 +115,9 @@ def test_four_supports_are_captured_by_load_bearing_geometry():
     assert report.snap_tabs_clear_primary_load_path
     assert report.left_insertion_direction == "+X"
     assert report.right_insertion_direction == "-X"
+    assert min(report.operating_y_rigid_witness_overlap_volumes) > 0.01
+    assert max(report.operating_y_snap_overlap_volumes) < 1e-6
+    assert max(report.installed_support_receiver_overlap_volumes) < 1e-6
     with pytest.raises(FrozenInstanceError):
         report.receiver_count = 3
 
@@ -112,7 +127,42 @@ def test_insertion_sweeps_are_clear_before_intended_final_contact():
     assert sweep.positions == POSITIONS
     assert sweep.all_approaches_clear
     assert sweep.all_finish_at_end_wall
-    assert max(sweep.maximum_unintended_overlap_volumes) < 1e-4
+    assert sweep.sample_withdrawals[-1] == pytest.approx(0.0)
+    assert max(sweep.maximum_rigid_interference_volumes) < 1e-6
+    assert min(sweep.maximum_designed_elastic_tab_contact_volumes) > 0.01
+    assert max(sweep.installed_total_overlap_volumes) < 1e-6
+    assert min(sweep.fully_clear_start_separations) >= DETAIL_DISENGAGEMENT_CLEARANCE
+
+
+def test_installed_complete_supports_have_contact_without_penetration():
+    base = _parts(build_low_profile_base())
+    supports = _parts(build_supports(installed=True))
+    receiver_labels = (
+        "front_left",
+        "front_right",
+        "rear_left",
+        "rear_right",
+    )
+    for position, external in zip(POSITIONS, receiver_labels):
+        receiver = base[f"female_slide_receiver_{external}"]
+        support = supports[f"removable_guide_support_{position}"]
+        assert (receiver & support).volume < 1e-6
+        assert receiver.distance_to(support) == pytest.approx(0.0, abs=1e-6)
+
+
+def test_detail_exploded_foot_is_fully_disengaged_on_insertion_axis():
+    from v4_screwless_base import build_mount_detail
+
+    parts = _parts(build_mount_detail())
+    receiver = parts["female_slide_receiver_front_left"]
+    installed = parts["installed_guide_support_foot"]
+    exploded = parts["exploded_guide_support_foot"]
+    assert (exploded & receiver).volume < 1e-7
+    assert exploded.distance_to(receiver) >= DETAIL_DISENGAGEMENT_CLEARANCE
+    assert exploded.bounding_box().center().Y == pytest.approx(
+        installed.bounding_box().center().Y
+    )
+    assert exploded.bounding_box().min.Z == pytest.approx(installed.bounding_box().min.Z)
 
 
 def test_combined_builder_is_stable_and_has_no_screw_holes():

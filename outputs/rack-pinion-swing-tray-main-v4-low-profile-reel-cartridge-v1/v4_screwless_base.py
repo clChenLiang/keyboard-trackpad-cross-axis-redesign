@@ -34,6 +34,12 @@ CARTRIDGE_CENTER = (120.0, 99.5)
 CARTRIDGE_POD_RADIUS = 23.0
 
 POSITIONS = ("left_front", "right_front", "left_rear", "right_rear")
+RECEIVER_EXTERNAL_NAME = {
+    "left_front": "front_left",
+    "right_front": "front_right",
+    "left_rear": "rear_left",
+    "right_rear": "rear_right",
+}
 GUIDE_X = {"left": -146.0, "right": 146.0}
 GUIDE_CENTER_Y = {"front": -21.79, "rear": 38.21}
 GUIDE_LANDING_DEPTH = 44.0
@@ -59,7 +65,15 @@ MALE_TOP_Z = 6.55
 MALE_BOTTOM_HALF_WIDTH = 7.0
 MALE_TOP_HALF_WIDTH = 5.0
 SLIDE_CLEARANCE = 0.2
-TAB_OFFSET_Y = 6.5
+TAB_OFFSET_Y = 6.0
+SNAP_WINDOW_LENGTH = 8.0
+SNAP_WINDOW_DEPTH = 4.5
+SNAP_TAB_LENGTH = 7.0
+SNAP_TAB_DEPTH = 2.0
+OPERATING_Y_WITNESS_MOVE = 0.45
+DETAIL_DISENGAGEMENT_CLEARANCE = 1.0
+DETAIL_WITHDRAWAL = RECEIVER_LENGTH + DETAIL_DISENGAGEMENT_CLEARANCE
+SWEEP_WITHDRAWALS = (DETAIL_WITHDRAWAL, 16.0, 12.0, 8.0, 4.0, 2.0, 1.0, 0.0)
 
 BASE_GRAPHITE = Color(0.17, 0.19, 0.22)
 RECEIVER_BLUE = Color(0.12, 0.40, 0.66)
@@ -85,13 +99,12 @@ def _rounded_prism(width, depth, radius, height, x, y, z0):
     return extrude(face, height).moved(Pos(x, y, z0))
 
 
-def _receiver_geometry(position: str):
-    """Return receiver, its end wall, and release-window witness geometry."""
+def _receiver_parts(position: str):
+    """Return load flanks, explicit snap ramp, end wall, and release window."""
     side, row = position.split("_")
     direction = 1.0 if side == "left" else -1.0
     outer_x = -155.0 if side == "left" else 155.0
     inner_x = outer_x + direction * RECEIVER_LENGTH
-    center_x = (outer_x + inner_x) / 2.0
     y = GUIDE_CENTER_Y[row]
 
     # Female dovetail flanks: the inward-facing surfaces narrow toward Z=7.
@@ -129,11 +142,26 @@ def _receiver_geometry(position: str):
 
     # The access window is a real top notch through the positive-Y capture
     # flank, aligned with the support's offset cantilever tab.
-    bridge_x = outer_x + direction * 4.5
-    window = _box(3.0, 4.0, 1.2, bridge_x, y + TAB_OFFSET_Y, 6.1)
-    receiver = left_flank + (right_flank - window) + end_wall
+    window_x = outer_x + direction * 5.0
+    window = _box(
+        SNAP_WINDOW_LENGTH,
+        SNAP_WINDOW_DEPTH,
+        1.6,
+        window_x,
+        y + TAB_OFFSET_Y,
+        5.9,
+    )
+    snap_ramp = right_flank - window
+    return left_flank, snap_ramp, end_wall, window
+
+
+def _receiver_geometry(position: str):
+    """Return receiver, its solid end datum, and release-window witness."""
+    left_flank, snap_ramp, end_wall, window = _receiver_parts(position)
+    external_name = RECEIVER_EXTERNAL_NAME[position]
+    receiver = left_flank + snap_ramp + end_wall
     return (
-        _label(receiver, f"female_slide_receiver_{position}", RECEIVER_BLUE),
+        _label(receiver, f"female_slide_receiver_{external_name}", RECEIVER_BLUE),
         _label(end_wall, f"receiver_end_wall_{position}", RECEIVER_BLUE),
         _label(window, f"receiver_release_window_{position}", WITNESS_ORANGE),
     )
@@ -203,7 +231,12 @@ def _primary_pad(name: str, center):
     return _label(pad, f"primary_tpu_pad_{name}", PAD_BLACK)
 
 
-def _installed_support(position: str):
+def _support_components(position: str):
+    """Return complete support, rigid load body/root, flexible blade, and root.
+
+    Keeping these actual BREP components available lets reports distinguish
+    rigid collision from the intentional elastic snap-ramp contact.
+    """
     side, row = position.split("_")
     direction = 1.0 if side == "left" else -1.0
     outer_x = -155.0 if side == "left" else 155.0
@@ -228,15 +261,42 @@ def _installed_support(position: str):
     stem = _box(10.0, 8.0, 0.65, guide_x, y, MALE_TOP_Z)
     landing = _box(14.0, GUIDE_LANDING_DEPTH, 3.0, guide_x, y, BASE_TOP_Z)
 
-    # The offset tab is connected at its inward root and visible through the
-    # receiver/landing release window.  It retains only reverse-X withdrawal.
-    tab_center_x = outer_x + direction * 4.5
-    tab = _box(5.0, 2.4, 0.75, tab_center_x, y + TAB_OFFSET_Y, 6.35)
-    tab_root_x = tab_center_x + direction * 2.5
-    tab_root = _box(2.5, 2.4, 1.2, tab_root_x, y + TAB_OFFSET_Y, 6.0)
-    release_access = _box(3.2, 4.2, 3.5, tab_center_x, y + TAB_OFFSET_Y, 6.8)
-    support = male + stem + (landing - release_access) + tab + tab_root
-    return _label(support, f"removable_guide_support_{position}", SUPPORT_TEAL)
+    # The root stays within the male-foot clearance envelope and therefore is
+    # rigid.  The thin blade overlaps it and flexes only while crossing the
+    # explicit positive-Y snap ramp; at full insertion it drops into the
+    # release window without positive-volume interference.
+    tab_center_x = outer_x + direction * 5.0
+    root_center_x = tab_center_x + direction * 2.5
+    tab_root = _box(3.0, 1.0, 0.45, root_center_x, y + 4.7, 6.05)
+    tab_blade = _box(
+        SNAP_TAB_LENGTH,
+        SNAP_TAB_DEPTH,
+        0.55,
+        tab_center_x,
+        y + TAB_OFFSET_Y,
+        6.1,
+    )
+    release_access = _box(
+        SNAP_WINDOW_LENGTH + 0.2,
+        SNAP_WINDOW_DEPTH + 0.2,
+        3.5,
+        tab_center_x,
+        y + TAB_OFFSET_Y,
+        6.8,
+    )
+    rigid_body_and_root = male + stem + (landing - release_access) + tab_root
+    support = rigid_body_and_root + tab_blade
+    return (
+        _label(support, f"removable_guide_support_{position}", SUPPORT_TEAL),
+        rigid_body_and_root,
+        tab_blade,
+        tab_root,
+        male,
+    )
+
+
+def _installed_support(position: str):
+    return _support_components(position)[0]
 
 
 def build_low_profile_base() -> Compound:
@@ -254,7 +314,13 @@ def build_supports(installed: bool = True) -> Compound:
         support = _installed_support(position)
         if not installed:
             side = position.split("_")[0]
-            support = support.moved(Pos(-12.0 if side == "left" else 12.0, 0.0, 0.0))
+            support = support.moved(
+                Pos(
+                    -DETAIL_WITHDRAWAL if side == "left" else DETAIL_WITHDRAWAL,
+                    0.0,
+                    0.0,
+                )
+            )
             support.label = f"removable_guide_support_{position}"
             support.color = SUPPORT_TEAL
         supports.append(support)
@@ -282,32 +348,46 @@ class MountReport:
     end_datum_gaps: tuple
     vertical_witness_overlap_volumes: tuple
     lateral_witness_overlap_volumes: tuple
+    operating_y_rigid_witness_overlap_volumes: tuple
+    operating_y_snap_overlap_volumes: tuple
+    installed_support_receiver_overlap_volumes: tuple
 
 
 def mount_report() -> MountReport:
     base_parts = {part.label: part for part in build_low_profile_base().children}
-    support_parts = {part.label: part for part in build_supports(True).children}
     end_gaps = []
     vertical_overlaps = []
     lateral_overlaps = []
-    snap_clear = []
+    operating_y_rigid_overlaps = []
+    operating_y_snap_overlaps = []
+    installed_overlaps = []
     directions = {}
     for position in POSITIONS:
         receiver, end_wall, _ = _receiver_geometry(position)
-        support = support_parts[f"removable_guide_support_{position}"]
+        support, rigid_body_and_root, tab_blade, tab_root, male = _support_components(position)
         end_gaps.append(support.distance_to(end_wall))
-        vertical_overlaps.append((support.moved(Pos(0, 0, 0.45)) & receiver).volume)
+        installed_overlaps.append((support & receiver).volume)
+        vertical_overlaps.append(
+            (rigid_body_and_root.moved(Pos(0, 0, 0.45)) & receiver).volume
+        )
         lateral_overlaps.append(
             max(
-                (support.moved(Pos(0, -0.45, 0)) & receiver).volume,
-                (support.moved(Pos(0, 0.45, 0)) & receiver).volume,
+                (rigid_body_and_root.moved(Pos(0, -OPERATING_Y_WITNESS_MOVE, 0)) & receiver).volume,
+                (rigid_body_and_root.moved(Pos(0, OPERATING_Y_WITNESS_MOVE, 0)) & receiver).volume,
             )
         )
-        side, row = position.split("_")
-        y = GUIDE_CENTER_Y[row]
-        primary_path = _box(18.0, 8.0, 5.0, GUIDE_X[side], y, 5.5)
-        _, _, window = _receiver_geometry(position)
-        snap_clear.append((window & primary_path).volume < 1e-7)
+        snap_with_root = tab_blade + tab_root
+        rigid_y_contact = max(
+            (male.moved(Pos(0, -OPERATING_Y_WITNESS_MOVE, 0)) & receiver).volume,
+            (male.moved(Pos(0, OPERATING_Y_WITNESS_MOVE, 0)) & receiver).volume,
+        )
+        snap_y_contact = max(
+            (snap_with_root.moved(Pos(0, -OPERATING_Y_WITNESS_MOVE, 0)) & receiver).volume,
+            (snap_with_root.moved(Pos(0, OPERATING_Y_WITNESS_MOVE, 0)) & receiver).volume,
+        )
+        operating_y_rigid_overlaps.append(rigid_y_contact)
+        operating_y_snap_overlaps.append(snap_y_contact)
+        side = position.split("_")[0]
         entry_x = receiver.bounding_box().min.X if side == "left" else receiver.bounding_box().max.X
         datum_x = end_wall.bounding_box().min.X if side == "left" else end_wall.bounding_box().max.X
         directions[side] = "+X" if datum_x > entry_x else "-X"
@@ -320,12 +400,18 @@ def mount_report() -> MountReport:
         all_at_end_datum=all(gap < 0.02 for gap in end_gaps),
         all_vertically_captured=all(volume > 0.01 for volume in vertical_overlaps),
         all_laterally_captured=all(volume > 0.01 for volume in lateral_overlaps),
-        snap_tabs_clear_primary_load_path=all(snap_clear),
+        snap_tabs_clear_primary_load_path=(
+            all(volume > 0.01 for volume in operating_y_rigid_overlaps)
+            and all(volume < 1e-7 for volume in operating_y_snap_overlaps)
+        ),
         left_insertion_direction=directions["left"],
         right_insertion_direction=directions["right"],
         end_datum_gaps=tuple(end_gaps),
         vertical_witness_overlap_volumes=tuple(vertical_overlaps),
         lateral_witness_overlap_volumes=tuple(lateral_overlaps),
+        operating_y_rigid_witness_overlap_volumes=tuple(operating_y_rigid_overlaps),
+        operating_y_snap_overlap_volumes=tuple(operating_y_snap_overlaps),
+        installed_support_receiver_overlap_volumes=tuple(installed_overlaps),
     )
 
 
@@ -335,45 +421,56 @@ class InsertionSweepReport:
     all_approaches_clear: bool
     all_finish_at_end_wall: bool
     maximum_unintended_overlap_volumes: tuple
+    sample_withdrawals: tuple
+    maximum_rigid_interference_volumes: tuple
+    maximum_designed_elastic_tab_contact_volumes: tuple
+    installed_total_overlap_volumes: tuple
+    fully_clear_start_separations: tuple
 
 
 def insertion_sweep_report() -> InsertionSweepReport:
     frame = _main_base()
-    maxima = []
+    rigid_maxima = []
+    elastic_maxima = []
+    installed_overlaps = []
+    start_separations = []
     finishes = []
     for position in POSITIONS:
         side = position.split("_")[0]
         direction = 1.0 if side == "left" else -1.0
-        support = _installed_support(position)
+        support, rigid_body_and_root, tab_blade, _, _ = _support_components(position)
         receiver, end_wall, _ = _receiver_geometry(position)
-        overlaps = []
-        # Directional witness positions stop just before the intended datum.
-        for withdrawal in (12.0, 8.0, 4.0, 0.4):
-            staged = support.moved(Pos(-direction * withdrawal, 0.0, 0.0))
-            frame_overlap = (staged & frame).volume
-            receiver_contact = staged & receiver
-            receiver_overlap = receiver_contact.volume
-            gross_overlap = frame_overlap + receiver_overlap
-            # The only permitted sweep contact is the printable cantilever
-            # passing the flank before it springs into the access notch.
-            row = position.split("_")[1]
-            # A positive-volume receiver contact is allowed only when its BREP
-            # lies wholly in the offset snap-tab corridor (never the centred
-            # guide-load stem or male dovetail body).
-            in_snap_corridor = (
-                receiver_overlap > 0.0
-                and receiver_contact.bounding_box().min.Y
-                > GUIDE_CENTER_Y[row] + MALE_TOP_HALF_WIDTH
+        _, snap_ramp, _, _ = _receiver_parts(position)
+        rigid_overlaps = []
+        elastic_contacts = []
+        for withdrawal in SWEEP_WITHDRAWALS:
+            move = Pos(-direction * withdrawal, 0.0, 0.0)
+            staged_rigid = rigid_body_and_root.moved(move)
+            staged_tab = tab_blade.moved(move)
+            rigid_overlaps.append(
+                (staged_rigid & frame).volume + (staged_rigid & receiver).volume
             )
-            designed_snap_contact = receiver_overlap if in_snap_corridor else 0.0
-            overlaps.append(max(0.0, gross_overlap - designed_snap_contact))
-        maxima.append(max(overlaps))
+            elastic_contacts.append((staged_tab & snap_ramp).volume)
+        rigid_maxima.append(max(rigid_overlaps))
+        elastic_maxima.append(max(elastic_contacts))
+        installed_overlaps.append((support & receiver).volume)
+        staged_start = support.moved(Pos(-direction * SWEEP_WITHDRAWALS[0], 0.0, 0.0))
+        start_separations.append(staged_start.distance_to(receiver))
         finishes.append(support.distance_to(end_wall) < 0.02)
     return InsertionSweepReport(
         positions=POSITIONS,
-        all_approaches_clear=all(volume < 1e-4 for volume in maxima),
+        all_approaches_clear=(
+            all(volume < 1e-6 for volume in rigid_maxima)
+            and all(volume < 1e-6 for volume in installed_overlaps)
+            and all(distance >= DETAIL_DISENGAGEMENT_CLEARANCE for distance in start_separations)
+        ),
         all_finish_at_end_wall=all(finishes),
-        maximum_unintended_overlap_volumes=tuple(maxima),
+        maximum_unintended_overlap_volumes=tuple(rigid_maxima),
+        sample_withdrawals=SWEEP_WITHDRAWALS,
+        maximum_rigid_interference_volumes=tuple(rigid_maxima),
+        maximum_designed_elastic_tab_contact_volumes=tuple(elastic_maxima),
+        installed_total_overlap_volumes=tuple(installed_overlaps),
+        fully_clear_start_separations=tuple(start_separations),
     )
 
 
@@ -386,7 +483,7 @@ def build_mount_detail() -> Compound:
     coupon = _label(base & coupon_tool, "receiver_base_coupon", BASE_GRAPHITE)
     installed = _installed_support(position)
     installed.label = "installed_guide_support_foot"
-    exploded = _installed_support(position).moved(Pos(-24.0, 0.0, 8.0))
+    exploded = _installed_support(position).moved(Pos(-DETAIL_WITHDRAWAL, 0.0, 0.0))
     exploded.label = "exploded_guide_support_foot"
     exploded.color = SUPPORT_TEAL
     arrow_shaft = Cylinder(
