@@ -4,20 +4,122 @@ import pytest
 
 import v4_kinematics
 import v4_reel_cartridge
+import reel_cartridge_section_exploded
 from build123d import Location
 from v4_kinematics import BELT_PITCH, BELT_TOTAL_CENTERLINE, BELT_Z, FEED_TRAVEL, REEL_TEETH
 from v4_reel_cartridge import (
+    BASE_STRUCTURAL_UNDERSIDE_Z,
+    BASE_TOP_Z,
     BACKING_THICKNESS,
     BELT_WIDTH,
     TOOTH_DEPTH,
     belt_path_report,
     belt_retention_report,
     build_belt_system,
+    build_cartridge,
+    cartridge_stack_report,
     reel_engagement_report,
     reel_wedge_insertion_report,
     slider_wedge_insertion_report,
+    stop_contact_report,
     tangent_tooth_pitch_report,
 )
+
+
+CARTRIDGE_LABELS = {
+    "lower_axial_thrust_interface",
+    "lower_radial_bearing_seat",
+    "above_base_return_spring",
+    "return_spring_inner_anchor",
+    "return_spring_outer_anchor",
+    "reel_drum_41t",
+    "upper_radial_bearing_seat",
+    "vertical_output_shaft",
+    "fixed_cartridge_housing",
+    "fixed_planar_belt_entry_guide",
+    "removable_cartridge_top_cap",
+    "independent_hard_stop_keyboard",
+    "independent_hard_stop_trackpad",
+    "shaft_rotating_stop_lug",
+}
+
+
+def test_cartridge_stack_entities_are_flat_unique_valid_positive_volume_parts():
+    cartridge = build_cartridge(0.5)
+    labels = [child.label for child in cartridge.children]
+
+    assert CARTRIDGE_LABELS <= set(labels)
+    assert len(labels) == len(set(labels))
+    for child in cartridge.children:
+        assert child.is_valid(), child.label
+        assert child.volume > 0.0, child.label
+        if child.label in CARTRIDGE_LABELS:
+            assert len(child.solids()) == 1, child.label
+
+
+def test_cartridge_can_omit_belt_without_losing_the_reused_reel():
+    labels = {child.label for child in build_cartridge(0.5, include_belt=False).children}
+
+    assert labels == CARTRIDGE_LABELS
+
+
+def test_stack_report_is_immutable_and_measures_above_base_supports_and_housing():
+    report = cartridge_stack_report()
+
+    assert BASE_TOP_Z == pytest.approx(7.0)
+    assert BASE_STRUCTURAL_UNDERSIDE_Z == pytest.approx(1.0)
+    assert report.minimum_component_z >= BASE_TOP_Z - 1e-6
+    assert report.minimum_component_z > BASE_STRUCTURAL_UNDERSIDE_Z
+    assert report.minimum_above_base_top >= -1e-6
+    assert report.minimum_above_structural_underside >= 6.0 - 1e-6
+    assert report.lower_radial_clearance <= 0.15
+    assert report.lower_radial_axial_overlap > 0.0
+    assert report.lower_axial_contact_distance <= 1e-6
+    assert report.lower_axial_positive_penetration_volume < 1e-6
+    assert report.upper_radial_clearance <= 0.15
+    assert report.upper_radial_axial_overlap > 0.0
+    assert report.spring_inner_anchor_distance <= 1e-6
+    assert report.spring_outer_anchor_distance <= 1e-6
+    assert report.spring_anchor_positive_penetration_volume < 1e-6
+    assert report.top_cap_wedge_blocking_overlap_volume > 1e-3
+    assert report.top_cap_removed_service_overlap_volume < 1e-6
+    assert 38.0 <= report.housing_outer_diameter <= 42.0
+
+    with pytest.raises(FrozenInstanceError):
+        report.housing_outer_diameter = 0.0
+
+
+@pytest.mark.parametrize(
+    ("travel", "keyboard", "trackpad"),
+    [(0.0, True, False), (0.5, False, False), (1.0, False, True)],
+)
+def test_independent_hard_stops_contact_only_at_their_intended_end_pose(
+    travel, keyboard, trackpad
+):
+    report = stop_contact_report(travel)
+
+    assert report.keyboard_contact is keyboard
+    assert report.trackpad_contact is trackpad
+    assert report.keyboard_positive_penetration_volume < 1e-6
+    assert report.trackpad_positive_penetration_volume < 1e-6
+
+
+def test_sectioned_cartridge_preserves_labels_and_exposes_a_valid_housing():
+    cartridge = build_cartridge(0.5, sectioned=True)
+    children = {child.label: child for child in cartridge.children}
+
+    assert CARTRIDGE_LABELS <= children.keys()
+    assert children["fixed_cartridge_housing"].is_valid()
+    assert 0.0 < children["fixed_cartridge_housing"].volume < build_cartridge(0.5).children[
+        [child.label for child in build_cartridge(0.5).children].index("fixed_cartridge_housing")
+    ].volume
+
+
+def test_section_exploded_entrypoint_reuses_the_labeled_cartridge_builder():
+    exploded = reel_cartridge_section_exploded.gen_step()
+
+    assert exploded.label.startswith("v4_reel_cartridge_section_exploded")
+    assert CARTRIDGE_LABELS <= {child.label for child in exploded.children}
 
 
 @pytest.mark.parametrize("travel", [0.0, 0.5, 1.0])

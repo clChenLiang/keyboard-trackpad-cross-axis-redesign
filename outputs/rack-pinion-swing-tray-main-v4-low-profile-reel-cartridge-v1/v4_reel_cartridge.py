@@ -21,6 +21,7 @@ from build123d import (
     Location,
     Plane,
     Shape,
+    Solid,
     Wire,
     extrude,
 )
@@ -69,6 +70,38 @@ SLIDER_APPROACH_ALLOWANCE = 3.0
 SLIDER_LOAD_STOP_THICKNESS = 0.40
 SLIDER_SUPPORT_Z_OVERHANG = 2.0
 
+# Cartridge datums and honest above-pan stack (millimetres).
+BASE_STRUCTURAL_UNDERSIDE_Z = 1.0
+BASE_TOP_Z = 7.0
+LOWER_THRUST_Z0 = BASE_TOP_Z
+LOWER_THRUST_HEIGHT = 1.0
+LOWER_RADIAL_Z0 = 9.0
+LOWER_RADIAL_HEIGHT = 5.0
+SPRING_Z0 = 15.0
+SPRING_HEIGHT = 10.0
+SPRING_WIRE_DIAMETER = 1.2
+SPRING_CENTERLINE_RADIUS = 8.0
+SPRING_TURNS = 4.0
+REEL_Z0 = BELT_Z - BELT_WIDTH / 2.0
+REEL_Z1 = BELT_Z + BELT_WIDTH / 2.0
+UPPER_RADIAL_Z0 = 42.0
+UPPER_RADIAL_HEIGHT = 4.0
+TOP_CAP_Z0 = 46.0
+TOP_CAP_HEIGHT = 3.0
+OUTPUT_SHAFT_RADIUS = 3.0
+BEARING_BORE_RADIUS = 3.1
+HOUSING_OUTER_RADIUS = 21.0
+HOUSING_INNER_RADIUS = 18.5
+HOUSING_Z0 = BASE_TOP_Z
+HOUSING_Z1 = TOP_CAP_Z0
+STOP_Z0 = 26.2
+STOP_HEIGHT = 2.0
+STOP_LUG_RADIAL_MIN = 4.0
+STOP_LUG_RADIAL_MAX = 9.0
+STOP_LUG_TANGENTIAL_WIDTH = 2.0
+DISTANCE_TOLERANCE = 1e-6
+VOLUME_TOLERANCE = 1e-6
+
 
 @dataclass(frozen=True)
 class ReelEngagementReport:
@@ -115,6 +148,36 @@ class ReelWedgeInsertionReport:
     samples: int
     max_positive_collision_volume: float
     final_datum_distance: float
+
+
+@dataclass(frozen=True)
+class CartridgeStackReport:
+    minimum_component_z: float
+    minimum_above_base_top: float
+    minimum_above_structural_underside: float
+    lower_radial_clearance: float
+    lower_radial_axial_overlap: float
+    lower_axial_contact_distance: float
+    lower_axial_positive_penetration_volume: float
+    upper_radial_clearance: float
+    upper_radial_axial_overlap: float
+    spring_inner_anchor_distance: float
+    spring_outer_anchor_distance: float
+    spring_anchor_positive_penetration_volume: float
+    top_cap_wedge_blocking_overlap_volume: float
+    top_cap_removed_service_overlap_volume: float
+    housing_outer_diameter: float
+
+
+@dataclass(frozen=True)
+class StopContactReport:
+    travel: float
+    keyboard_contact: bool
+    trackpad_contact: bool
+    keyboard_distance: float
+    trackpad_distance: float
+    keyboard_positive_penetration_volume: float
+    trackpad_positive_penetration_volume: float
 
 
 def _box(size: Tuple[float, float, float], center: Tuple[float, float, float]) -> Shape:
@@ -286,8 +349,14 @@ def _reel_drum(travel: float) -> Shape:
     # A broad radial pocket replaces five ordinary lands at the service end.
     for cell in _reel_wedge_outer_cells(travel):
         drum = drum - cell
+    shaft_bore = Cylinder(
+        OUTPUT_SHAFT_RADIUS,
+        BELT_WIDTH + 2.0,
+        align=(Align.CENTER, Align.CENTER, Align.MIN),
+    ).moved(Location((0.0, 0.0, REEL_Z0 - 1.0)))
+    drum = drum - shaft_bore
     floor, stop = _reel_pocket_support(travel)
-    drum = drum + floor + stop
+    drum = (drum + floor + stop) - shaft_bore
     return _label(drum, "reel_drum_41t")
 
 
@@ -704,6 +773,279 @@ def belt_retention_report() -> BeltRetentionReport:
         slider_working_direction_blocked=_has_directional_contact(
             slider_wedge, slider_stop, (0.0, CONTACT_WITNESS_TRAVEL, 0.0)
         ),
+    )
+
+
+def _annular_cylinder(outer_radius: float, inner_radius: float, height: float, z0: float) -> Shape:
+    outer = Cylinder(
+        outer_radius, height, align=(Align.CENTER, Align.CENTER, Align.MIN)
+    ).moved(Location((0.0, 0.0, z0)))
+    bore = Cylinder(
+        inner_radius, height + 2.0, align=(Align.CENTER, Align.CENTER, Align.MIN)
+    ).moved(Location((0.0, 0.0, z0 - 1.0)))
+    return outer - bore
+
+
+def _lower_axial_thrust_interface() -> Shape:
+    return _label(
+        _annular_cylinder(8.0, BEARING_BORE_RADIUS, LOWER_THRUST_HEIGHT, LOWER_THRUST_Z0),
+        "lower_axial_thrust_interface",
+    )
+
+
+def _lower_radial_bearing_seat() -> Shape:
+    return _label(
+        _annular_cylinder(8.0, BEARING_BORE_RADIUS, LOWER_RADIAL_HEIGHT, LOWER_RADIAL_Z0),
+        "lower_radial_bearing_seat",
+    )
+
+
+def _upper_radial_bearing_seat() -> Shape:
+    return _label(
+        _annular_cylinder(9.0, BEARING_BORE_RADIUS, UPPER_RADIAL_HEIGHT, UPPER_RADIAL_Z0),
+        "upper_radial_bearing_seat",
+    )
+
+
+def _vertical_output_shaft() -> Shape:
+    shaft = Cylinder(
+        OUTPUT_SHAFT_RADIUS,
+        57.0 - (LOWER_THRUST_Z0 + LOWER_THRUST_HEIGHT),
+        align=(Align.CENTER, Align.CENTER, Align.MIN),
+    ).moved(Location((0.0, 0.0, LOWER_THRUST_Z0 + LOWER_THRUST_HEIGHT)))
+    thrust_shoulder = Cylinder(
+        5.0, 1.0, align=(Align.CENTER, Align.CENTER, Align.MIN)
+    ).moved(Location((0.0, 0.0, LOWER_THRUST_Z0 + LOWER_THRUST_HEIGHT)))
+    return _label(shaft + thrust_shoulder, "vertical_output_shaft")
+
+
+def _return_spring() -> Shape:
+    path = Edge.make_helix(
+        SPRING_HEIGHT / SPRING_TURNS,
+        SPRING_HEIGHT,
+        SPRING_CENTERLINE_RADIUS,
+        center=(0.0, 0.0, SPRING_Z0),
+        normal=(0.0, 0.0, 1.0),
+    )
+    profile = Face(
+        Wire.make_circle(
+            SPRING_WIRE_DIAMETER / 2.0,
+            Plane(path.position_at(0), z_dir=path.tangent_at(0)),
+        )
+    )
+    coil = Solid.sweep(profile, path, is_frenet=True)
+    inner_leg = _box(
+        (4.4, SPRING_WIRE_DIAMETER, SPRING_WIRE_DIAMETER),
+        (5.8, 0.0, SPRING_Z0),
+    )
+    outer_leg = _box(
+        (10.0, SPRING_WIRE_DIAMETER, SPRING_WIRE_DIAMETER),
+        (13.0, 0.0, SPRING_Z0 + SPRING_HEIGHT),
+    )
+    return _label(coil + inner_leg + outer_leg, "above_base_return_spring")
+
+
+def _return_spring_inner_anchor() -> Shape:
+    return _label(
+        _box((1.2, 1.2, 1.2), (3.0, 0.0, SPRING_Z0)),
+        "return_spring_inner_anchor",
+    )
+
+
+def _return_spring_outer_anchor() -> Shape:
+    return _label(
+        _box((1.5, 1.2, 1.2), (18.75, 0.0, SPRING_Z0 + SPRING_HEIGHT)),
+        "return_spring_outer_anchor",
+    )
+
+
+def _fixed_cartridge_housing(sectioned: bool = False) -> Shape:
+    housing = _annular_cylinder(
+        HOUSING_OUTER_RADIUS,
+        HOUSING_INNER_RADIUS,
+        HOUSING_Z1 - HOUSING_Z0,
+        HOUSING_Z0,
+    )
+    belt_entry = _box((5.0, 24.0, 16.0), (-13.0, -12.0, BELT_Z))
+    housing = housing - belt_entry
+    if sectioned:
+        section_tool = _box(
+            (
+                HOUSING_OUTER_RADIUS + 2.0,
+                2.0 * HOUSING_OUTER_RADIUS + 4.0,
+                HOUSING_Z1 - HOUSING_Z0 + 2.0,
+            ),
+            ((HOUSING_OUTER_RADIUS + 2.0) / 2.0, 0.0, (HOUSING_Z0 + HOUSING_Z1) / 2.0),
+        )
+        housing = housing - section_tool
+    return _label(housing, "fixed_cartridge_housing")
+
+
+def _fixed_planar_belt_entry_guide() -> Shape:
+    side = _box((0.7, 23.0, 14.0), (-14.15, -12.5, BELT_Z))
+    lower = _box((2.8, 23.0, 0.5), (-12.75, -12.5, REEL_Z0 - 0.25))
+    upper = _box((2.8, 23.0, 0.5), (-12.75, -12.5, REEL_Z1 + 0.25))
+    return _label(side + lower + upper, "fixed_planar_belt_entry_guide")
+
+
+def _removable_cartridge_top_cap() -> Shape:
+    return _label(
+        _annular_cylinder(HOUSING_OUTER_RADIUS, BEARING_BORE_RADIUS, TOP_CAP_HEIGHT, TOP_CAP_Z0),
+        "removable_cartridge_top_cap",
+    )
+
+
+def _radial_stop_bar(angle_deg: float, label: str, tangent_offset: float = 0.0) -> Shape:
+    radial_size = STOP_LUG_RADIAL_MAX - STOP_LUG_RADIAL_MIN
+    bar = _box(
+        (radial_size, STOP_LUG_TANGENTIAL_WIDTH, STOP_HEIGHT),
+        (
+            (STOP_LUG_RADIAL_MIN + STOP_LUG_RADIAL_MAX) / 2.0,
+            tangent_offset,
+            STOP_Z0 + STOP_HEIGHT / 2.0,
+        ),
+    ).rotate(Axis.Z, angle_deg)
+    return _label(bar, label)
+
+
+def _keyboard_hard_stop() -> Shape:
+    return _radial_stop_bar(0.0, "independent_hard_stop_keyboard", -STOP_LUG_TANGENTIAL_WIDTH)
+
+
+def _trackpad_hard_stop() -> Shape:
+    return _radial_stop_bar(90.0, "independent_hard_stop_trackpad", STOP_LUG_TANGENTIAL_WIDTH)
+
+
+def _shaft_rotating_stop_lug(travel: float) -> Shape:
+    return _radial_stop_bar(pose_state(travel).reel_angle_deg, "shaft_rotating_stop_lug")
+
+
+def _stack_parts(travel: float, sectioned: bool) -> List[Shape]:
+    return [
+        _lower_axial_thrust_interface(),
+        _lower_radial_bearing_seat(),
+        _return_spring(),
+        _return_spring_inner_anchor(),
+        _return_spring_outer_anchor(),
+        _reel_drum(travel),
+        _upper_radial_bearing_seat(),
+        _vertical_output_shaft(),
+        _fixed_cartridge_housing(sectioned),
+        _fixed_planar_belt_entry_guide(),
+        _removable_cartridge_top_cap(),
+        _keyboard_hard_stop(),
+        _trackpad_hard_stop(),
+        _shaft_rotating_stop_lug(travel),
+    ]
+
+
+def build_cartridge(
+    travel: float, sectioned: bool = False, include_belt: bool = True
+) -> Compound:
+    """Build a flat, separately selectable cartridge and optional Task 2 belt."""
+    pose_state(travel)
+    stack = _stack_parts(travel, sectioned)
+    if include_belt:
+        belt_children = [
+            child for child in build_belt_system(travel).children if child.label != "reel_drum_41t"
+        ]
+        stack.extend(belt_children)
+    return _compound(f"v4_reel_cartridge_t{travel:.3f}", stack)
+
+
+def build_cartridge_exploded(travel: float = 0.5) -> Compound:
+    """Explode the shared sectioned build while preserving its coaxial witness axis."""
+    offsets = {
+        "lower_axial_thrust_interface": -8.0,
+        "lower_radial_bearing_seat": -4.0,
+        "above_base_return_spring": 5.0,
+        "return_spring_inner_anchor": 5.0,
+        "return_spring_outer_anchor": 5.0,
+        "reel_drum_41t": 10.0,
+        "upper_radial_bearing_seat": 18.0,
+        "removable_cartridge_top_cap": 26.0,
+    }
+    children = []
+    for child in build_cartridge(travel, sectioned=True).children:
+        dz = offsets.get(child.label, 0.0)
+        children.append(child.moved(Location((0.0, 0.0, dz))) if dz else child)
+    return _compound(f"v4_reel_cartridge_section_exploded_t{travel:.3f}", children)
+
+
+def _axial_overlap(a: Shape, b: Shape) -> float:
+    a_bounds = a.bounding_box()
+    b_bounds = b.bounding_box()
+    return max(0.0, min(a_bounds.max.Z, b_bounds.max.Z) - max(a_bounds.min.Z, b_bounds.min.Z))
+
+
+def cartridge_stack_report() -> CartridgeStackReport:
+    """Measure support, anchor, service, and envelope facts from nominal BREPs."""
+    travel = 0.5
+    parts = {part.label: part for part in _stack_parts(travel, False)}
+    shaft = parts["vertical_output_shaft"]
+    lower_radial = parts["lower_radial_bearing_seat"]
+    upper_radial = parts["upper_radial_bearing_seat"]
+    thrust = parts["lower_axial_thrust_interface"]
+    spring = parts["above_base_return_spring"]
+    inner_anchor = parts["return_spring_inner_anchor"]
+    outer_anchor = parts["return_spring_outer_anchor"]
+    cap = parts["removable_cartridge_top_cap"]
+    housing = parts["fixed_cartridge_housing"]
+    wedge, _ = _reel_wedge_and_pockets(travel)
+
+    lower_probe = Cylinder(
+        OUTPUT_SHAFT_RADIUS, LOWER_RADIAL_HEIGHT, align=(Align.CENTER, Align.CENTER, Align.MIN)
+    ).moved(Location((0.0, 0.0, LOWER_RADIAL_Z0)))
+    upper_probe = Cylinder(
+        OUTPUT_SHAFT_RADIUS, UPPER_RADIAL_HEIGHT, align=(Align.CENTER, Align.CENTER, Align.MIN)
+    ).moved(Location((0.0, 0.0, UPPER_RADIAL_Z0)))
+    blocking_lift = TOP_CAP_Z0 - wedge.bounding_box().max.Z + CONTACT_WITNESS_TRAVEL
+    blocking_wedge = wedge.moved(Location((0.0, 0.0, blocking_lift)))
+    service_wedge = wedge.moved(Location((0.0, 0.0, REEL_SERVICE_APPROACH)))
+    service_fixed = _compound("service_fixed_witness", [housing, upper_radial])
+    housing_bounds = housing.bounding_box()
+    minimum_component_z = min(part.bounding_box().min.Z for part in parts.values())
+
+    return CartridgeStackReport(
+        minimum_component_z=minimum_component_z,
+        minimum_above_base_top=minimum_component_z - BASE_TOP_Z,
+        minimum_above_structural_underside=minimum_component_z
+        - BASE_STRUCTURAL_UNDERSIDE_Z,
+        lower_radial_clearance=lower_probe.distance_to(lower_radial),
+        lower_radial_axial_overlap=_axial_overlap(lower_probe, lower_radial),
+        lower_axial_contact_distance=shaft.distance_to(thrust),
+        lower_axial_positive_penetration_volume=(shaft & thrust).volume,
+        upper_radial_clearance=upper_probe.distance_to(upper_radial),
+        upper_radial_axial_overlap=_axial_overlap(upper_probe, upper_radial),
+        spring_inner_anchor_distance=spring.distance_to(inner_anchor),
+        spring_outer_anchor_distance=spring.distance_to(outer_anchor),
+        spring_anchor_positive_penetration_volume=(spring & inner_anchor).volume
+        + (spring & outer_anchor).volume,
+        top_cap_wedge_blocking_overlap_volume=(blocking_wedge & cap).volume,
+        top_cap_removed_service_overlap_volume=(service_wedge & service_fixed).volume,
+        housing_outer_diameter=housing_bounds.max.X - housing_bounds.min.X,
+    )
+
+
+def stop_contact_report(travel: float) -> StopContactReport:
+    """Measure exclusive 0/90 degree stop state without using the spring."""
+    lug = _shaft_rotating_stop_lug(travel)
+    keyboard = _keyboard_hard_stop()
+    trackpad = _trackpad_hard_stop()
+    keyboard_distance = lug.distance_to(keyboard)
+    trackpad_distance = lug.distance_to(trackpad)
+    keyboard_penetration = (lug & keyboard).volume
+    trackpad_penetration = (lug & trackpad).volume
+    return StopContactReport(
+        travel=float(travel),
+        keyboard_contact=keyboard_distance <= DISTANCE_TOLERANCE
+        and keyboard_penetration <= VOLUME_TOLERANCE,
+        trackpad_contact=trackpad_distance <= DISTANCE_TOLERANCE
+        and trackpad_penetration <= VOLUME_TOLERANCE,
+        keyboard_distance=keyboard_distance,
+        trackpad_distance=trackpad_distance,
+        keyboard_positive_penetration_volume=keyboard_penetration,
+        trackpad_positive_penetration_volume=trackpad_penetration,
     )
 
 
