@@ -5,9 +5,13 @@ import pytest
 
 from v4_kinematics import (
     BELT_PITCH,
+    BELT_TOTAL_CENTERLINE,
     BELT_Z,
     FEED_TRAVEL,
     FREE_BELT_CENTERLINE,
+    INITIAL_STRAIGHT_BELT_LENGTH,
+    INITIAL_WRAP_CENTERLINE,
+    INITIAL_WRAP_TEETH,
     KEYBOARD_DY,
     KEYBOARD_DZ,
     REEL_PITCH_RADIUS,
@@ -41,19 +45,27 @@ def test_exported_pose_mapping(
     assert state.belt_z == BELT_Z
 
 
-@pytest.mark.parametrize("travel", (0.0, 0.5, 1.0))
-def test_belt_centerline_length_is_constant_at_exported_poses(travel):
+@pytest.mark.parametrize(
+    ("travel", "expected_free_length"),
+    ((0.0, 46.0), (0.5, 35.75), (1.0, 25.5)),
+)
+def test_belt_centerline_length_is_constant_at_exported_poses(
+    travel, expected_free_length
+):
     state = pose_state(travel)
 
+    assert state.free_belt_length == pytest.approx(expected_free_length)
     assert isclose(
-        state.free_belt_length + REEL_PITCH_RADIUS * state.reel_angle_rad,
-        FREE_BELT_CENTERLINE,
+        state.free_belt_length
+        + INITIAL_WRAP_CENTERLINE
+        + REEL_PITCH_RADIUS * state.reel_angle_rad,
+        BELT_TOTAL_CENTERLINE,
         rel_tol=0.0,
         abs_tol=1e-12,
     )
     assert isclose(
         state.belt_centerline_length,
-        FREE_BELT_CENTERLINE,
+        BELT_TOTAL_CENTERLINE,
         rel_tol=0.0,
         abs_tol=1e-12,
     )
@@ -103,7 +115,7 @@ def test_pose_state_has_travel_as_its_only_stored_invariant():
     assert state.keyboard_dz == pytest.approx(-7.5)
     assert state.belt_z == pytest.approx(BELT_Z)
     assert state.free_belt_length == pytest.approx(35.75)
-    assert state.belt_centerline_length == pytest.approx(FREE_BELT_CENTERLINE)
+    assert state.belt_centerline_length == pytest.approx(BELT_TOTAL_CENTERLINE)
 
     with pytest.raises(TypeError):
         V4PoseState(travel=0.5, belt_feed=999.0)
@@ -114,4 +126,13 @@ def test_public_travel_constants_match_v4_contract():
     assert KEYBOARD_DY == 20.42
     assert KEYBOARD_DZ == -15.0
     assert BELT_Z == 35.0
+    assert INITIAL_STRAIGHT_BELT_LENGTH == 46.0
     assert FREE_BELT_CENTERLINE == 46.0
+    assert FREE_BELT_CENTERLINE == INITIAL_STRAIGHT_BELT_LENGTH
+    assert INITIAL_WRAP_TEETH == 11
+    assert INITIAL_WRAP_CENTERLINE == INITIAL_WRAP_TEETH * BELT_PITCH == 22.0
+    assert (
+        BELT_TOTAL_CENTERLINE
+        == INITIAL_STRAIGHT_BELT_LENGTH + INITIAL_WRAP_CENTERLINE
+        == 68.0
+    )

@@ -11,11 +11,17 @@ from math import degrees, pi
 BELT_PITCH = 2.0
 REEL_TEETH = 41
 REEL_PITCH_RADIUS = REEL_TEETH * BELT_PITCH / (2.0 * pi)
+INITIAL_STRAIGHT_BELT_LENGTH = 46.0
+# Backward-compatible name: this is the zero-pose straight run, not total belt.
+FREE_BELT_CENTERLINE = INITIAL_STRAIGHT_BELT_LENGTH
+# Reserve at least five working teeth plus five teeth captured by the wedge.
+INITIAL_WRAP_TEETH = 11
+INITIAL_WRAP_CENTERLINE = INITIAL_WRAP_TEETH * BELT_PITCH
+BELT_TOTAL_CENTERLINE = INITIAL_STRAIGHT_BELT_LENGTH + INITIAL_WRAP_CENTERLINE
 FEED_TRAVEL = 20.50
 KEYBOARD_DY = 20.42
 KEYBOARD_DZ = -15.0
 BELT_Z = 35.0
-FREE_BELT_CENTERLINE = 46.0
 
 
 @dataclass(frozen=True)
@@ -56,12 +62,12 @@ class V4PoseState:
 
     @property
     def free_belt_length(self) -> float:
-        return FREE_BELT_CENTERLINE - self.belt_feed
+        return INITIAL_STRAIGHT_BELT_LENGTH - self.belt_feed
 
     @property
     def belt_centerline_length(self) -> float:
         reeled_length = REEL_PITCH_RADIUS * self.reel_angle_rad
-        return self.free_belt_length + reeled_length
+        return self.free_belt_length + INITIAL_WRAP_CENTERLINE + reeled_length
 
 
 def pose_state(travel: float) -> V4PoseState:
@@ -70,5 +76,5 @@ def pose_state(travel: float) -> V4PoseState:
 
 
 def belt_centerline_length(travel: float) -> float:
-    """Return free plus reeled belt centerline length at a normalized pose."""
+    """Return straight plus initially wrapped and reeled belt centerline length."""
     return pose_state(travel).belt_centerline_length
