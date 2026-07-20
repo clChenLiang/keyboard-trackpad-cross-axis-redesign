@@ -119,32 +119,60 @@ REMOVED_LABELS = frozenset(
     }
 )
 
-# Every suppression is one named physical seam.  There are no category-wide
-# exclusions.  The three overlaps below are deliberate fused-load interfaces;
-# receiver seams and base/receiver seams are designed zero-gap contacts.
-INTENDED_CONTACT_ALLOWLIST = frozenset(
-    {
-        ("keyboard_tray_continuous", "keyboard_short_drive_tongue"),
-        ("keyboard_short_drive_tongue", "floating_z_drive_fork"),
-        ("screwless_belt_end_slider", "belt_slider_drive_adapter"),
-        ("flexible_belt_backing", "fixed_planar_belt_entry_guide"),
-        ("flexible_belt_teeth", "fixed_planar_belt_entry_guide"),
-        ("flexible_belt_backing", "reel_drum_41t"),
-        ("flexible_belt_teeth", "reel_drum_41t"),
-        *RECEIVER_BASE_INTEGRATION_ALLOWLIST,
-        *(
-            ("rounded_low_profile_base", f"removable_keyboard_guide_{position}")
-            for position in POSITIONS
-        ),
-        *(
-            (
-                f"female_slide_receiver_{RECEIVER_EXTERNAL_NAME[position]}",
-                f"removable_keyboard_guide_{position}",
-            )
-            for position in POSITIONS
-        ),
-    }
-)
+@dataclass(frozen=True)
+class ContactAllowance:
+    max_overlap: float
+    purpose: str
+
+
+# Every suppression is one named physical seam with a measured overlap budget;
+# there are no category-wide exclusions.  Limits are based on the three frozen
+# poses plus a small numerical/modeling margin, in cubic millimetres.
+INTENDED_CONTACT_LIMITS = {
+    # Fused drive-load interfaces.
+    ("keyboard_tray_continuous", "keyboard_short_drive_tongue"): ContactAllowance(
+        29.5, "tray-to-drive-tongue fused load path"
+    ),
+    ("keyboard_short_drive_tongue", "floating_z_drive_fork"): ContactAllowance(
+        4.10, "drive-tongue-to-fork fused load path"
+    ),
+    ("screwless_belt_end_slider", "belt_slider_drive_adapter"): ContactAllowance(
+        12.7, "slider-to-adapter fused load path"
+    ),
+    # Belt guidance and designed reel engagement.
+    ("flexible_belt_backing", "fixed_planar_belt_entry_guide"): ContactAllowance(
+        VOLUME_TOLERANCE, "zero-gap backing guidance"
+    ),
+    ("flexible_belt_teeth", "fixed_planar_belt_entry_guide"): ContactAllowance(
+        VOLUME_TOLERANCE, "zero-gap tooth guidance"
+    ),
+    ("flexible_belt_backing", "reel_drum_41t"): ContactAllowance(
+        0.13, "backing seated on reel land"
+    ),
+    ("flexible_belt_teeth", "reel_drum_41t"): ContactAllowance(
+        1.10, "teeth seated in reel grooves"
+    ),
+    # Printed-in receiver fusion to the base.
+    **{
+        pair: ContactAllowance(136.2, "receiver fused into base frame")
+        for pair in RECEIVER_BASE_INTEGRATION_ALLOWLIST
+    },
+    # Installed removable guides touch but do not penetrate their support/base.
+    **{
+        ("rounded_low_profile_base", f"removable_keyboard_guide_{position}"): ContactAllowance(
+            VOLUME_TOLERANCE, "guide seated on base"
+        )
+        for position in POSITIONS
+    },
+    **{
+        (
+            f"female_slide_receiver_{RECEIVER_EXTERNAL_NAME[position]}",
+            f"removable_keyboard_guide_{position}",
+        ): ContactAllowance(VOLUME_TOLERANCE, "guide seated in slide receiver")
+        for position in POSITIONS
+    },
+}
+INTENDED_CONTACT_ALLOWLIST = frozenset(INTENDED_CONTACT_LIMITS)
 
 TONGUE_RED = Color(0.86, 0.25, 0.12)
 FORK_GOLD = Color(0.96, 0.63, 0.08)
@@ -155,6 +183,12 @@ def _label(shape: Shape, label: str, color: Color) -> Shape:
     shape.label = label
     shape.color = color
     return shape
+
+
+def _shape_is_valid(shape: Shape) -> bool:
+    """Support build123d releases exposing ``is_valid`` as method or property."""
+    validity = shape.is_valid
+    return bool(validity() if callable(validity) else validity)
 
 
 def _box(width: float, depth: float, height: float, x: float, y: float, z0: float) -> Shape:
@@ -366,7 +400,7 @@ def guide_alignment_report(travels: Iterable[float]) -> GuideAlignmentReport:
             carriage = parts[f"keyboard_carriage_{position}"]
             distances.append(carriage.distance_to(guide))
             penetrations.append((carriage & guide).volume)
-            one_solid.append(guide.is_valid() and len(guide.solids()) == 1)
+            one_solid.append(_shape_is_valid(guide) and len(guide.solids()) == 1)
     return GuideAlignmentReport(
         poses=poses,
         guide_labels=guide_labels,
@@ -458,7 +492,13 @@ def _changed_pair_names() -> tuple[tuple[str, str], ...]:
             ("keyboard_short_drive_tongue", "floating_z_drive_fork"),
         )
     )
-    return tuple(pairs)
+    # Collision is symmetric.  Keep the first stable orientation, except that
+    # intended contacts use the explicit orientation of their overlap budget.
+    unique = {}
+    for first_label, second_label in pairs:
+        key = frozenset((first_label, second_label))
+        unique.setdefault(key, _canonical_pair(first_label, second_label))
+    return tuple(unique.values())
 
 
 def interference_report(travels: Iterable[float] = (0.0, 0.5, 1.0)) -> InterferenceReport:
@@ -482,7 +522,12 @@ def interference_report(travels: Iterable[float] = (0.0, 0.5, 1.0)) -> Interfere
             )
             checked.append(pair)
             canonical = _canonical_pair(first_label, second_label)
-            if canonical in INTENDED_CONTACT_ALLOWLIST and pair.distance <= 1e-5:
+            allowance = INTENDED_CONTACT_LIMITS.get(canonical)
+            if (
+                allowance is not None
+                and pair.distance <= 1e-5
+                and overlap <= allowance.max_overlap
+            ):
                 intended.add(canonical)
             elif overlap > VOLUME_TOLERANCE:
                 unintended.append(pair)

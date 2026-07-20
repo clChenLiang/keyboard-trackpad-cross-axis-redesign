@@ -8,8 +8,10 @@ import pytest
 from v4_assembly import (
     CARTRIDGE_CENTER,
     INTENDED_CONTACT_ALLOWLIST,
+    INTENDED_CONTACT_LIMITS,
     REMOVED_LABELS,
     REQUIRED_LABELS,
+    _shape_is_valid,
     build_pose,
     drive_interface_report,
     guide_alignment_report,
@@ -91,6 +93,22 @@ def test_changed_interface_collision_report_has_only_named_clean_pairs():
     assert report.unintended_positive_volume_pairs == ()
     assert report.intended_contact_pairs
     assert set(report.intended_contact_pairs) <= INTENDED_CONTACT_ALLOWLIST
+    for travel in POSES:
+        pose_pairs = [
+            frozenset((pair.first_label, pair.second_label))
+            for pair in report.checked_pairs
+            if pair.travel == travel
+        ]
+        assert len(pose_pairs) == len(set(pose_pairs))
+    for intended_pair in report.intended_contact_pairs:
+        allowance = INTENDED_CONTACT_LIMITS[intended_pair]
+        observed = [
+            pair.positive_volume
+            for pair in report.checked_pairs
+            if frozenset((pair.first_label, pair.second_label)) == frozenset(intended_pair)
+        ]
+        assert observed
+        assert max(observed) <= allowance.max_overlap
     assert all(pair.first_label != pair.second_label for pair in report.checked_pairs)
     with pytest.raises(FrozenInstanceError):
         report.poses = ()
@@ -125,6 +143,14 @@ def test_collision_report_covers_every_changed_belt_drum_and_guide_pair():
     assert 0.0 < min(pair.positive_volume for pair in backing_drum)
     assert max(pair.positive_volume for pair in backing_drum) < 0.13
     assert max(pair.positive_volume for pair in teeth_drum) < 1.10
+    for belt_entry_pair in (
+        ("flexible_belt_backing", "fixed_planar_belt_entry_guide"),
+        ("flexible_belt_teeth", "fixed_planar_belt_entry_guide"),
+    ):
+        allowance = INTENDED_CONTACT_LIMITS[belt_entry_pair]
+        observed = by_pair[frozenset(belt_entry_pair)]
+        assert allowance.max_overlap == pytest.approx(1e-6)
+        assert max(pair.positive_volume for pair in observed) <= allowance.max_overlap
     assert {
         ("flexible_belt_backing", "reel_drum_41t"),
         ("flexible_belt_teeth", "reel_drum_41t"),
@@ -148,7 +174,7 @@ def test_four_fused_guides_follow_retained_carriage_datums():
 @pytest.mark.parametrize("travel", POSES)
 def test_every_selectable_top_level_child_is_valid_and_positive(travel):
     for child in build_pose(travel).children:
-        assert child.is_valid(), child.label
+        assert _shape_is_valid(child), child.label
         assert child.volume > 0.0, child.label
 
 
