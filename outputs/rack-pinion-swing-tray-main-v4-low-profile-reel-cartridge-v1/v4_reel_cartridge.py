@@ -6,7 +6,7 @@ The reel axis is +Z and the straight run stays centred at ``BELT_Z``.
 """
 
 from dataclasses import dataclass
-from math import atan2, ceil, cos, degrees, floor, pi, sin
+from math import atan2, ceil, cos, degrees, pi, sin
 from typing import List, Sequence, Tuple
 
 from build123d import Align, Axis, Box, Compound, Cylinder, Location, Shape
@@ -64,6 +64,14 @@ class SliderWedgeInsertionReport:
     samples: int
     max_positive_collision_volume: float
     final_at_datum: bool
+
+
+@dataclass(frozen=True)
+class TangentToothPitchReport:
+    straight_nearest_center_offset: float
+    wrapped_nearest_center_offset: float
+    tangent_center_pitch: float
+    total_tooth_solids: int
 
 
 def _box(size: Tuple[float, float, float], center: Tuple[float, float, float]) -> Shape:
@@ -263,14 +271,24 @@ def _straight_backing(travel: float) -> Shape:
 
 def _straight_teeth(travel: float) -> List[Shape]:
     length = pose_state(travel).free_belt_length
-    count = floor(length / BELT_PITCH)
-    residual_phase = pose_state(travel).belt_feed % BELT_PITCH
+    wrapped_offset = min(
+        REEL_PITCH_RADIUS * _clockwise_from_entry(angle) for angle in _arc_tooth_angles(travel)
+    )
+    nearest_offset = (-wrapped_offset) % BELT_PITCH
     radial_center = -(BACKING_INNER_RADIUS - TOOTH_DEPTH / 2.0)
+    backing_bounds = _straight_backing(travel).bounding_box()
     result = []
-    for index in range(count):
-        y = -residual_phase - (index + 0.5) * BELT_PITCH
-        if y - TOOTH_TANGENTIAL_LENGTH / 2.0 >= -length:
-            result.append(_box((TOOTH_DEPTH, TOOTH_TANGENTIAL_LENGTH, BELT_WIDTH), (radial_center, y, BELT_Z)))
+    # Generate one extra boundary candidate, then retain it only if its actual
+    # tooth BREP fits completely on the posed straight backing.
+    for index in range(ceil(length / BELT_PITCH) + 1):
+        y = -nearest_offset - index * BELT_PITCH
+        tooth = _box((TOOTH_DEPTH, TOOTH_TANGENTIAL_LENGTH, BELT_WIDTH), (radial_center, y, BELT_Z))
+        bounds = tooth.bounding_box()
+        if (
+            bounds.min.Y >= backing_bounds.min.Y - CONTACT_TOLERANCE
+            and bounds.max.Y <= backing_bounds.max.Y + CONTACT_TOLERANCE
+        ):
+            result.append(tooth)
     return result
 
 
@@ -394,6 +412,26 @@ def belt_path_report(travel: float) -> BeltPathReport:
     return BeltPathReport(
         centerline_length=straight_length + REEL_PITCH_RADIUS * measured_wrap_angle,
         backing_entry_gap=straight.distance_to(arc[0]),
+    )
+
+
+def tangent_tooth_pitch_report(travel: float) -> TangentToothPitchReport:
+    """Measure tooth-center pitch across the fixed straight/arc tangent."""
+    straight_teeth = _straight_teeth(travel)
+    wrapped_teeth = [_arc_tooth(angle) for angle in _arc_tooth_angles(travel)]
+    straight_offset = min(-tooth.bounding_box().center().Y for tooth in straight_teeth)
+    wrapped_offset = min(
+        REEL_PITCH_RADIUS
+        * _clockwise_from_entry(
+            atan2(tooth.bounding_box().center().Y, tooth.bounding_box().center().X)
+        )
+        for tooth in wrapped_teeth
+    )
+    return TangentToothPitchReport(
+        straight_nearest_center_offset=straight_offset,
+        wrapped_nearest_center_offset=wrapped_offset,
+        tangent_center_pitch=straight_offset + wrapped_offset,
+        total_tooth_solids=len(straight_teeth) + len(wrapped_teeth),
     )
 
 

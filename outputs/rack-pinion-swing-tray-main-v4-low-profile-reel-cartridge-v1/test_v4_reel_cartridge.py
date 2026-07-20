@@ -15,6 +15,7 @@ from v4_reel_cartridge import (
     build_belt_system,
     reel_engagement_report,
     slider_wedge_insertion_report,
+    tangent_tooth_pitch_report,
 )
 
 
@@ -109,6 +110,21 @@ def test_fixed_entry_backing_is_continuous_and_keeps_68mm_centerline(travel):
 
 def test_reel_cartridge_imports_the_upstream_initial_wrap_contract():
     assert v4_reel_cartridge.INITIAL_WRAP_TEETH == v4_kinematics.INITIAL_WRAP_TEETH
+
+
+@pytest.mark.parametrize(
+    ("travel", "straight_offset", "wrapped_offset"),
+    [(0.0, 1.00, 1.00), (0.5, 0.75, 1.25), (1.0, 0.50, 1.50)],
+)
+def test_tangent_tooth_pitch_and_total_tooth_count_are_conserved(
+    travel, straight_offset, wrapped_offset
+):
+    report = tangent_tooth_pitch_report(travel)
+
+    assert report.straight_nearest_center_offset == pytest.approx(straight_offset, abs=1e-6)
+    assert report.wrapped_nearest_center_offset == pytest.approx(wrapped_offset, abs=1e-6)
+    assert report.tangent_center_pitch == pytest.approx(BELT_PITCH, abs=1e-6)
+    assert report.total_tooth_solids == 34
 
 
 @pytest.mark.parametrize("travel", [-0.01, 1.01])
