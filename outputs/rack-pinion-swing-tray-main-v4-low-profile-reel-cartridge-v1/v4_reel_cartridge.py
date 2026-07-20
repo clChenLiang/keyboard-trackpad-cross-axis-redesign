@@ -44,6 +44,7 @@ TOOTH_DEPTH = 0.9
 TOOTH_TANGENTIAL_LENGTH = 0.80
 
 WEDGE_CAPTURE_TEETH = 5
+BELT_END_MAX_CENTER_MARGIN = BELT_PITCH / 2.0
 BACKING_INNER_RADIUS = REEL_PITCH_RADIUS - BACKING_THICKNESS / 2.0
 BACKING_OUTER_RADIUS = REEL_PITCH_RADIUS + BACKING_THICKNESS / 2.0
 DRUM_LAND_CLEARANCE = 0.05
@@ -186,6 +187,22 @@ class ReelWedgeInsertionReport:
     samples: int
     max_positive_collision_volume: float
     final_datum_distance: float
+
+
+@dataclass(frozen=True)
+class BeltEndSliderDatumReport:
+    travel: float
+    belt_feed: float
+    slider_center_x: float
+    slider_center_y: float
+    slider_center_z: float
+    wedge_center_x: float
+    wedge_center_y: float
+    wedge_center_z: float
+    captured_teeth: int
+    free_endpoint_y: float
+    first_tooth_center_margin: float
+    unclamped_tail_length: float
 
 
 @dataclass(frozen=True)
@@ -522,7 +539,9 @@ def _straight_teeth(travel: float) -> List[Shape]:
 
 
 def _slider_capture_teeth(travel: float) -> List[Shape]:
-    return _straight_teeth(travel)[-WEDGE_CAPTURE_TEETH:]
+    # Material coordinates are ordered from the keyboard/free end toward the
+    # reel. The first five teeth therefore move with the free backing endpoint.
+    return _straight_teeth(travel)[:WEDGE_CAPTURE_TEETH]
 
 
 def _slider_wedge_and_pockets(travel: float) -> Tuple[Shape, List[Shape]]:
@@ -743,11 +762,13 @@ def _captured_tooth_count(
     return captured
 
 
-def slider_wedge_insertion_report(samples: int = 7) -> SliderWedgeInsertionReport:
+def slider_wedge_insertion_report(
+    samples: int = 7, travel: float = 0.5
+) -> SliderWedgeInsertionReport:
     """Sample the explicit +X to -X transverse service insertion."""
     if samples < 6:
         raise ValueError("at least six insertion samples are required")
-    travel = 0.5
+    pose_state(travel)
     wedge, _ = _slider_wedge_and_pockets(travel)
     teeth = _compound("slider_capture_teeth_check", _slider_capture_teeth(travel))
     backing = _straight_backing(travel)
@@ -770,6 +791,35 @@ def slider_wedge_insertion_report(samples: int = 7) -> SliderWedgeInsertionRepor
         final_at_datum=_has_directional_contact(
             wedge, datum, (-CONTACT_WITNESS_TRAVEL, 0.0, 0.0)
         ),
+    )
+
+
+def belt_end_slider_datum_report(travel: float) -> BeltEndSliderDatumReport:
+    """Expose the actual free-end slider datum for downstream fork placement."""
+    state = pose_state(travel)
+    captured_teeth = _slider_capture_teeth(travel)
+    wedge, _ = _slider_wedge_and_pockets(travel)
+    slider, _, _ = _slider_support(travel)
+    straight_backing = _straight_backing(travel)
+
+    slider_center = slider.bounding_box().center()
+    wedge_center = wedge.bounding_box().center()
+    first_tooth_center_y = captured_teeth[0].bounding_box().center().Y
+    free_endpoint_y = straight_backing.bounding_box().min.Y
+    captured_zone_min_y = wedge.bounding_box().min.Y
+    return BeltEndSliderDatumReport(
+        travel=state.travel,
+        belt_feed=state.belt_feed,
+        slider_center_x=slider_center.X,
+        slider_center_y=slider_center.Y,
+        slider_center_z=slider_center.Z,
+        wedge_center_x=wedge_center.X,
+        wedge_center_y=wedge_center.Y,
+        wedge_center_z=wedge_center.Z,
+        captured_teeth=len(captured_teeth),
+        free_endpoint_y=free_endpoint_y,
+        first_tooth_center_margin=first_tooth_center_y - free_endpoint_y,
+        unclamped_tail_length=max(0.0, captured_zone_min_y - free_endpoint_y),
     )
 
 

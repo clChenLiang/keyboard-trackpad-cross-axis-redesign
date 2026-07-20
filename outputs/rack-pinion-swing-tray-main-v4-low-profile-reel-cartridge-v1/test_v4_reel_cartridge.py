@@ -12,9 +12,11 @@ from v4_reel_cartridge import (
     BASE_TOP_Z,
     OUTPUT_SHAFT_TOP_Z,
     BACKING_THICKNESS,
+    BELT_END_MAX_CENTER_MARGIN,
     BELT_WIDTH,
     TOOTH_DEPTH,
     belt_path_report,
+    belt_end_slider_datum_report,
     belt_retention_report,
     build_belt_system,
     build_cartridge,
@@ -316,6 +318,39 @@ def test_slider_wedge_has_a_collision_free_transverse_insertion_path():
 
     assert report.insertion_direction == "+X toward -X"
     assert report.samples == 7
+    assert report.max_positive_collision_volume < 1e-6
+    assert report.final_at_datum
+
+
+@pytest.mark.parametrize(
+    ("travel", "expected_feed"), [(0.0, 0.0), (0.5, 10.25), (1.0, 20.5)]
+)
+def test_slider_clamps_the_free_belt_end_and_tracks_full_feed(travel, expected_feed):
+    zero = belt_end_slider_datum_report(0.0)
+    report = belt_end_slider_datum_report(travel)
+
+    assert report.slider_center_y - zero.slider_center_y == pytest.approx(expected_feed)
+    assert report.wedge_center_y - zero.wedge_center_y == pytest.approx(expected_feed)
+    assert report.slider_center_z == pytest.approx(BELT_Z)
+    assert report.wedge_center_z == pytest.approx(BELT_Z)
+    assert report.captured_teeth == 5
+    assert report.first_tooth_center_margin <= BELT_END_MAX_CENTER_MARGIN + 1e-6
+    assert report.first_tooth_center_margin == pytest.approx(BELT_PITCH / 2.0)
+    assert report.unclamped_tail_length <= 1e-6
+
+    captured_centers = [
+        tooth.bounding_box().center().Y
+        for tooth in v4_reel_cartridge._slider_capture_teeth(travel)
+    ]
+    assert captured_centers == pytest.approx(
+        v4_reel_cartridge._material_tooth_coordinates(travel)[:5]
+    )
+
+
+@pytest.mark.parametrize("travel", [0.0, 0.5, 1.0])
+def test_slider_transverse_insertion_remains_clear_at_the_moving_free_end(travel):
+    report = slider_wedge_insertion_report(samples=9, travel=travel)
+
     assert report.max_positive_collision_volume < 1e-6
     assert report.final_at_datum
 
