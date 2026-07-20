@@ -45,7 +45,7 @@ CARTRIDGE_LABELS = {
 
 
 def test_cartridge_stack_entities_are_flat_unique_valid_positive_volume_parts():
-    cartridge = build_cartridge(0.5)
+    cartridge = build_cartridge(0.5, include_belt=False)
     labels = [child.label for child in cartridge.children]
 
     assert CARTRIDGE_LABELS <= set(labels)
@@ -78,6 +78,12 @@ def test_stack_report_is_immutable_and_measures_above_base_supports_and_housing(
     assert report.lower_axial_positive_penetration_volume < 1e-6
     assert report.upper_radial_clearance <= 0.15
     assert report.upper_radial_axial_overlap > 0.0
+    assert report.lower_thrust_housing_distance <= 1e-6
+    assert report.lower_thrust_housing_connection_volume > 1e-3
+    assert report.lower_radial_housing_distance <= 1e-6
+    assert report.lower_radial_housing_connection_volume > 1e-3
+    assert report.upper_radial_housing_distance <= 1e-6
+    assert report.upper_radial_housing_connection_volume > 1e-3
     assert report.spring_inner_anchor_distance <= 1e-6
     assert report.spring_outer_anchor_distance <= 1e-6
     assert report.spring_anchor_positive_penetration_volume < 1e-6
@@ -104,15 +110,70 @@ def test_independent_hard_stops_contact_only_at_their_intended_end_pose(
     assert report.trackpad_positive_penetration_volume < 1e-6
 
 
+def test_rotating_lug_has_a_real_solid_load_path_into_the_labeled_shaft():
+    children = {
+        child.label: child for child in build_cartridge(0.5, include_belt=False).children
+    }
+    lug = children["shaft_rotating_stop_lug"]
+    shaft = children["vertical_output_shaft"]
+
+    assert len(lug.solids()) == 1
+    assert lug.distance_to(shaft) <= 1e-6
+    assert (lug & shaft).volume > 1e-3
+
+
+def test_fixed_stops_have_real_solid_mounting_load_paths_into_the_housing():
+    children = {
+        child.label: child for child in build_cartridge(0.5, include_belt=False).children
+    }
+    housing = children["fixed_cartridge_housing"]
+
+    for label in ("independent_hard_stop_keyboard", "independent_hard_stop_trackpad"):
+        stop = children[label]
+        assert len(stop.solids()) == 1
+        assert stop.distance_to(housing) <= 1e-6
+        assert (stop & housing).volume > 1e-3
+
+
+def test_radial_support_report_is_sensitive_to_the_actual_labeled_shaft_brep():
+    nominal = cartridge_stack_report()
+    off_axis_shaft = v4_reel_cartridge._vertical_output_shaft().moved(
+        Location((1.0, 0.0, 0.0))
+    )
+    displaced = cartridge_stack_report(shaft_override=off_axis_shaft)
+
+    assert nominal.lower_radial_clearance == pytest.approx(0.1, abs=1e-6)
+    assert nominal.upper_radial_clearance == pytest.approx(0.1, abs=1e-6)
+    assert displaced.lower_radial_clearance != pytest.approx(
+        nominal.lower_radial_clearance, abs=1e-3
+    )
+    assert displaced.upper_radial_clearance != pytest.approx(
+        nominal.upper_radial_clearance, abs=1e-3
+    )
+
+
+def test_spring_model_parameters_are_explicitly_provisional():
+    assert v4_reel_cartridge.PROVISIONAL_SPRING_WIRE_DIAMETER > 0.0
+    assert v4_reel_cartridge.PROVISIONAL_SPRING_COIL_TURNS > 0.0
+    assert v4_reel_cartridge.PROVISIONAL_SPRING_PITCH > 0.0
+    assert v4_reel_cartridge.PROVISIONAL_SPRING_PRELOAD_DEG >= 0.0
+
+
 def test_sectioned_cartridge_preserves_labels_and_exposes_a_valid_housing():
-    cartridge = build_cartridge(0.5, sectioned=True)
+    cartridge = build_cartridge(0.5, sectioned=True, include_belt=False)
     children = {child.label: child for child in cartridge.children}
+    unsectioned = {
+        child.label: child
+        for child in build_cartridge(0.5, include_belt=False).children
+    }
 
     assert CARTRIDGE_LABELS <= children.keys()
     assert children["fixed_cartridge_housing"].is_valid()
-    assert 0.0 < children["fixed_cartridge_housing"].volume < build_cartridge(0.5).children[
-        [child.label for child in build_cartridge(0.5).children].index("fixed_cartridge_housing")
-    ].volume
+    assert (
+        0.0
+        < children["fixed_cartridge_housing"].volume
+        < unsectioned["fixed_cartridge_housing"].volume
+    )
 
 
 def test_section_exploded_entrypoint_reuses_the_labeled_cartridge_builder():
