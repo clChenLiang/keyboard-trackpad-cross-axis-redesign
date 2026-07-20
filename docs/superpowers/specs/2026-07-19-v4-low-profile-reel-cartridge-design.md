@@ -56,6 +56,15 @@ Replace the module-1 rigid rack and pinion with the validated planar, single-lay
 - belt centreline height remains fixed relative to the cylinder entry guide;
 - the belt winds in one planar layer rather than spiralling axially.
 
+The approved first prototype route is a commercially sourced open-ended synchronous belt rather than a monolithic TPU-printed belt:
+
+- retain the `2.00 mm` pitch and nominal `12 mm` width in the concept CAD;
+- prefer a non-steel tensile member so the belt remains easy to bend and trim without metalworking;
+- model an approximately `1.2 mm` backing and `0.9 mm` tooth depth as the validated A-P concept envelope, not as a supplier-specific production profile;
+- keep the toothed face toward the reel and the continuous backing outward throughout the bend;
+- use the `13.05 mm` pitch radius so only about `90°` of single-layer wrap is added over the full motion;
+- do not claim final material, minimum pulley diameter, reinforcement, or fatigue life until an actual belt product is selected and tested.
+
 The previous rigid rack, module-1 pinion, and rack back-pressure rollers are therefore deleted rather than retained as redundant transmission parts.
 
 The production tooth profile, belt reinforcement, fatigue life, and final material remain outside this concept round.
@@ -66,8 +75,10 @@ Treat the belt and reel as one replaceable **functional cartridge**, but not as 
 
 - The reel, shaft interfaces, bearing seats, hard stops, and housing use rigid material.
 - The repeatedly flexed toothed belt uses a flexible, fatigue-capable material.
-- The belt root terminates in a printed enlarged tongue or dovetail wedge.
-- The tongue slides into a matching reel slot and becomes geometrically self-locking under belt tension.
+- Both cut belt ends are retained by removable printed tooth-matching wedges; the purchased belt does not require a molded or printed T-head.
+- Each wedge captures approximately four to five belt teeth in a matching undercut slot and becomes geometrically self-tightening under working tension.
+- The reel-side wedge inserts axially from above into a radial reel pocket. The removable top cap prevents Z-direction withdrawal while leaving the wedge serviceable.
+- The keyboard-side wedge uses the same tooth-matching principle inside the constant-Z belt-end slider.
 - No screw is used at the belt-to-reel interface.
 - A service opening or removable top cap must permit belt replacement without accessing the underside of the base.
 
@@ -100,7 +111,7 @@ Replace the base fasteners for the four inclined keyboard-support assemblies wit
 - Pressing the tab from above releases the support for reverse sliding removal.
 - Dovetail faces provide vertical and lateral constraint; the end wall carries the longitudinal reaction. The snap tab is retention only and must not carry the main keyboard load.
 
-The same no-screw principle applies to the belt-end slider: an enlarged belt-end key inserts transversely into a captured slot, reaches a solid end datum, and is retained by geometry rather than clamp screws.
+The same no-screw principle applies to the belt-end slider: the belt and its tooth-matching wedge insert into a captured slot, reach a solid end datum, and are retained by geometry rather than clamp screws.
 
 ## Component boundaries
 
@@ -147,12 +158,13 @@ Validate only the interfaces changed by this architecture:
 2. The belt-end slider remains at constant world Z while the keyboard tongue moves forward and down.
 3. Belt centreline length remains constant at keyboard, midpoint, and trackpad poses.
 4. At least five belt teeth occupy matching reel grooves at the stored endpoint without positive reel penetration.
-5. The return spring, reel, shaft, bearings, belt, and housing have real supporting interfaces and remain above the base underside.
-6. The independent hard stops contact only at their intended endpoints.
-7. Each dovetail support foot reaches its solid end datum, is vertically and laterally captured, and does not rely on the snap tab for primary load transfer.
-8. The base and moving assembly have no unintended positive-volume interference at the three exported poses.
-9. All generated STEP files reload with their required selectable labels.
-10. A compact render packet confirms the low table height, restrained radii, belt entry, cartridge stack, and screwless mount orientation.
+5. Each belt-end wedge positively captures at least four teeth, reaches its solid seating datum, and cannot leave its slot in the working load direction.
+6. The return spring, reel, shaft, bearings, belt, and housing have real supporting interfaces and remain above the base underside.
+7. The independent hard stops contact only at their intended endpoints.
+8. Each dovetail support foot reaches its solid end datum, is vertically and laterally captured, and does not rely on the snap tab for primary load transfer.
+9. The base and moving assembly have no unintended positive-volume interference at the three exported poses.
+10. All generated STEP files reload with their required selectable labels.
+11. A compact render packet confirms the low table height, restrained radii, belt entry, cartridge stack, wedge orientation, and screwless mount orientation.
 
 The already passing A-P tests may be reused rather than rewritten. Do not perform final belt fatigue, spring sizing, tooth stress, shaft deflection, production tolerance, STL/3MF, BOM, print-layout, or continuous-pose certification in this first concept.
 
