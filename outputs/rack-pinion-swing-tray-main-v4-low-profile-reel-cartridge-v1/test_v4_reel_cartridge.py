@@ -5,7 +5,7 @@ import pytest
 import v4_kinematics
 import v4_reel_cartridge
 from build123d import Location
-from v4_kinematics import BELT_PITCH, BELT_TOTAL_CENTERLINE, BELT_Z, REEL_TEETH
+from v4_kinematics import BELT_PITCH, BELT_TOTAL_CENTERLINE, BELT_Z, FEED_TRAVEL, REEL_TEETH
 from v4_reel_cartridge import (
     BACKING_THICKNESS,
     BELT_WIDTH,
@@ -14,6 +14,7 @@ from v4_reel_cartridge import (
     belt_retention_report,
     build_belt_system,
     reel_engagement_report,
+    reel_wedge_insertion_report,
     slider_wedge_insertion_report,
     tangent_tooth_pitch_report,
 )
@@ -125,6 +126,55 @@ def test_tangent_tooth_pitch_and_total_tooth_count_are_conserved(
     assert report.wrapped_nearest_center_offset == pytest.approx(wrapped_offset, abs=1e-6)
     assert report.tangent_center_pitch == pytest.approx(BELT_PITCH, abs=1e-6)
     assert report.total_tooth_solids == 34
+
+
+def test_every_tangent_transfer_boundary_has_half_open_tooth_ownership():
+    for crossing_feed in range(1, 20, 2):
+        for delta in (-1e-7, 0.0, 1e-7):
+            report = tangent_tooth_pitch_report((crossing_feed + delta) / FEED_TRAVEL)
+            assert report.total_tooth_solids == int(BELT_TOTAL_CENTERLINE / BELT_PITCH)
+            assert report.tangent_center_pitch == pytest.approx(BELT_PITCH, abs=1e-6)
+
+
+def test_tooth_count_and_tangent_pitch_survive_a_21_pose_sweep():
+    for index in range(21):
+        report = tangent_tooth_pitch_report(index / 20.0)
+        assert report.total_tooth_solids == int(BELT_TOTAL_CENTERLINE / BELT_PITCH)
+        assert report.tangent_center_pitch == pytest.approx(BELT_PITCH, abs=1e-6)
+
+
+@pytest.mark.parametrize("travel", [0.0, 0.5, 1.0, 1.0 / FEED_TRAVEL])
+def test_backing_is_one_exact_solid_with_conserved_material_volume(travel):
+    children = {child.label: child for child in build_belt_system(travel).children}
+    backing = children["flexible_belt_backing"]
+    report = belt_path_report(travel)
+
+    assert backing.is_valid()
+    assert len(backing.solids()) == 1
+    assert backing.volume == pytest.approx(
+        BACKING_THICKNESS * BELT_WIDTH * BELT_TOTAL_CENTERLINE, rel=1e-7
+    )
+    assert backing.volume / BELT_WIDTH == pytest.approx(
+        BACKING_THICKNESS * report.centerline_length, rel=1e-7
+    )
+
+
+@pytest.mark.parametrize("travel", [0.0, 0.5, 1.0])
+def test_path_report_measures_the_explicit_pitch_line_wire(travel):
+    wire = v4_reel_cartridge._pitch_line_wire(travel)
+    report = belt_path_report(travel)
+
+    assert report.centerline_length == pytest.approx(sum(edge.length for edge in wire.edges()))
+    assert report.backing_entry_gap == pytest.approx(0.0, abs=1e-9)
+
+
+def test_reel_wedge_has_collision_free_axial_service_insertion():
+    report = reel_wedge_insertion_report(samples=9)
+
+    assert report.insertion_direction == "+Z toward -Z"
+    assert report.samples == 9
+    assert report.max_positive_collision_volume < 1e-6
+    assert report.final_datum_distance == pytest.approx(0.0, abs=1e-6)
 
 
 @pytest.mark.parametrize("travel", [-0.01, 1.01])
